@@ -1,0 +1,41 @@
+const useMock = () =>
+  (import.meta.env.VITE_USE_MOCK ?? 'true').toString().toLowerCase() !== 'false'
+
+const baseUrl = () =>
+  (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001').replace(
+    /\/$/,
+    '',
+  )
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+export function isMockMode(): boolean {
+  return useMock()
+}
+
+export async function apiFetch<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await fetch(`${baseUrl()}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new ApiError(body || res.statusText || 'Request failed', res.status)
+  }
+  if (res.status === 204) return undefined as T
+  return res.json() as Promise<T>
+}

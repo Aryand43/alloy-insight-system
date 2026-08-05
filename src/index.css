@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --color-steel-950: #0d1117;
+  --color-steel-900: #141a22;
+  --color-steel-850: #1a222c;
+  --color-steel-800: #243040;
+  --color-steel-700: #354556;
+  --color-steel-600: #4a5d72;
+  --color-steel-500: #6b7f94;
+  --color-steel-400: #8a9aab;
+  --color-steel-300: #a8b5c4;
+  --color-steel-200: #c5d0db;
+  --color-steel-100: #e2e8ef;
+  --color-steel-50: #f0f3f7;
+
+  --color-signal-red: #d64545;
+  --color-signal-blue: #3d7ab5;
+  --color-signal-green: #3d9a6a;
+  --color-signal-yellow: #e8b84a;
+  --color-signal-amber: #c9922a;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-steel-950);
+  color: var(--color-steel-100);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Industrial atmosphere — cool gradient + fine grid + noise */
+.app-atmosphere {
+  background-color: var(--color-steel-950);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 10% 0%, rgba(61, 122, 181, 0.08), transparent 50%),
+    radial-gradient(ellipse 90% 60% at 90% 20%, rgba(232, 184, 74, 0.04), transparent 45%),
+    linear-gradient(180deg, #141a22 0%, #0d1117 100%);
+  position: relative;
+}
+
+.app-atmosphere::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(138, 154, 171, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 154, 171, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(180deg, black 0%, transparent 85%);
+}
+
+.app-atmosphere::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.panel-surface {
+  background: linear-gradient(
+    160deg,
+    rgba(36, 48, 64, 0.55) 0%,
+    rgba(20, 26, 34, 0.75) 100%
+  );
+  border: 1px solid rgba(138, 154, 171, 0.14);
+}
