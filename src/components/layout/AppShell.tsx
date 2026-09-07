@@ -42,7 +42,7 @@ export function AppShell({ children, compact = false, trailing }: AppShellProps)
                 compact ? 'text-sm' : 'text-base sm:text-lg',
               ].join(' ')}
             >
-              Alloy Insight
+              Process Insight
             </span>
           </Link>
           {trailing}

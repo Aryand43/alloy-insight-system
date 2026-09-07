@@ -21,3 +21,7 @@ dist-ssr
 # Env
 .env.local
 .env.*.local
+
+# Research corpus — ~33 GB and ~195k files, kept out of version control.
+# Point the data bridge at it with BACKEND_DATA_DIR if it lives elsewhere.
+Backend-Data/

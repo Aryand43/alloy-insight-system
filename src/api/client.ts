@@ -1,4 +1,4 @@
-const useMock = () =>
+const mockEnabled = () =>
   (import.meta.env.VITE_USE_MOCK ?? 'true').toString().toLowerCase() !== 'false'
 
 const baseUrl = () =>
@@ -18,7 +18,7 @@ export class ApiError extends Error {
 }
 
 export function isMockMode(): boolean {
-  return useMock()
+  return mockEnabled()
 }
 
 export async function apiFetch<T>(

@@ -1,6 +1,8 @@
 import type {
   AnalysisSession,
+  BuildSummary,
   ClassifiedVoxel,
+  ColorClass,
   Frame,
   MeshPayload,
   SessionConfig,
@@ -14,6 +16,64 @@ function delay(ms = 280): Promise<void> {
 }
 
 const sessions = new Map<string, AnalysisSession>()
+
+/**
+ * A stand-in catalog so demo mode still renders a build picker. These mirror
+ * three real coupon ids but carry no measurements — the real list comes from
+ * GET /catalog once VITE_USE_MOCK is off.
+ */
+const MOCK_CATALOG: BuildSummary[] = [
+  {
+    id: '60047207r2',
+    label: '60047207r2 · 0.7 mm × 72 layers · 4-pass · R2 (demo)',
+    lengthMm: 60,
+    passes: 4,
+    layers: 72,
+    layerHeightMm: 0.7,
+    run: 2,
+    shorthand: '7r2_4pass',
+    targetHeightMm: 50.4,
+    hasKivImages: true,
+    hasRawFrames: false,
+    hasThermal: false,
+    quality: 'best',
+  },
+  {
+    id: '60045010r2',
+    label: '60045010r2 · 1.0 mm × 50 layers · 4-pass · R2 (demo)',
+    lengthMm: 60,
+    passes: 4,
+    layers: 50,
+    layerHeightMm: 1,
+    run: 2,
+    shorthand: '10r2_4pass',
+    targetHeightMm: 50,
+    hasKivImages: true,
+    hasRawFrames: false,
+    hasThermal: false,
+    quality: 'worst',
+  },
+  {
+    id: '60106308r3',
+    label: '60106308r3 · 0.8 mm × 63 layers · 10-pass · R3 (demo)',
+    lengthMm: 60,
+    passes: 10,
+    layers: 63,
+    layerHeightMm: 0.8,
+    run: 3,
+    shorthand: '8r3_10pass',
+    targetHeightMm: 50.4,
+    hasKivImages: false,
+    hasRawFrames: true,
+    hasThermal: true,
+    quality: null,
+  },
+]
+
+export async function mockGetCatalog(): Promise<BuildSummary[]> {
+  await delay(120)
+  return MOCK_CATALOG
+}
 
 function uid(): string {
   return `ses_${Math.random().toString(36).slice(2, 10)}`
@@ -89,6 +149,7 @@ export async function mockGetSession(id: string): Promise<AnalysisSession> {
       meltingTempC: 1450,
       dataSourceName: 'demo_sequence.zip',
       configName: 'default_preset.json',
+      sampleId: MOCK_CATALOG[0].id,
     },
     status: 'ready',
     createdAt: new Date().toISOString(),
@@ -200,12 +261,11 @@ export async function mockGetThreeColor(
   await delay(220)
   void sessionId
   const voxels: ClassifiedVoxel[] = []
-  const classes = ['red', 'blue', 'green'] as const
   for (let ix = 0; ix < 6; ix++) {
     for (let iy = 0; iy < 4; iy++) {
       for (let iz = 0; iz < 5; iz++) {
         // Prefer green in a callout band (notebook callout)
-        let cls: (typeof classes)[number]
+        let cls: ColorClass
         if (ix >= 3 && iy >= 1 && iy <= 2 && iz >= 1) {
           cls = 'green'
         } else if ((ix + iy + iz) % 3 === 0) {

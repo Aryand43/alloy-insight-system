@@ -9,11 +9,11 @@ export function SetupPage() {
           <div className="flex items-center gap-3 sm:hidden">
             <BrandMark size={40} />
             <h1 className="text-2xl font-semibold tracking-tight text-steel-50">
-              Alloy Insight
+              Process Insight
             </h1>
           </div>
           <h1 className="hidden text-4xl font-semibold tracking-tight text-steel-50 sm:block">
-            Alloy Insight
+            Process Insight
           </h1>
           <p className="max-w-xl text-base text-steel-400 leading-relaxed">
             Configure material, process, and melt parameters for additive

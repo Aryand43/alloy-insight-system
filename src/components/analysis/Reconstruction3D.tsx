@@ -53,21 +53,35 @@ export function Reconstruction3D({ data, loading }: Reconstruction3DProps) {
     )
   }
 
+  const { meta } = data
+
   return (
-    <div className="h-full min-h-[180px] overflow-hidden rounded-sm bg-steel-950/50">
-      <Canvas
-        camera={{ position: [3.2, 2.4, 3.2], fov: 40 }}
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: true }}
-      >
-        <color attach="background" args={['#0d1117']} />
-        <ambientLight intensity={0.45} />
-        <directionalLight position={[4, 6, 3]} intensity={1.1} />
-        <directionalLight position={[-3, 2, -2]} intensity={0.35} />
-        <ReconMesh data={data} />
-        <gridHelper args={[6, 12, '#354556', '#243040']} position={[0, -0.9, 0]} />
-        <OrbitControls enablePan={false} minDistance={2} maxDistance={8} />
-      </Canvas>
+    <div className="flex h-full min-h-[180px] flex-col gap-2">
+      <div className="flex-1 overflow-hidden rounded-sm bg-steel-950/50">
+        <Canvas
+          camera={{ position: [3.2, 2.4, 3.2], fov: 40 }}
+          dpr={[1, 1.5]}
+          gl={{ antialias: true, alpha: true }}
+        >
+          <color attach="background" args={['#0d1117']} />
+          <ambientLight intensity={0.45} />
+          <directionalLight position={[4, 6, 3]} intensity={1.1} />
+          <directionalLight position={[-3, 2, -2]} intensity={0.35} />
+          <ReconMesh data={data} />
+          <gridHelper args={[6, 12, '#354556', '#243040']} position={[0, -0.9, 0]} />
+          <OrbitControls enablePan={false} minDistance={2} maxDistance={8} />
+        </Canvas>
+      </div>
+      {meta && (
+        <p
+          className="font-mono text-[11px] text-steel-500"
+          title="Slab thickness is the equivalent bead width of each layer's measured melt-pool area — a single-track estimate, not a measured wall thickness"
+        >
+          {meta.layers} layers · {meta.lengthMm} × {meta.heightMm} mm · wall{' '}
+          {meta.minThicknessMm}–{meta.maxThicknessMm} mm
+          {meta.thicknessExaggeration !== 1 && ` · thickness ×${meta.thicknessExaggeration}`}
+        </p>
+      )}
     </div>
   )
 }
