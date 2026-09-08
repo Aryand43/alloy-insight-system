@@ -1,14 +1,24 @@
 import { ROI_CENTER_COL, ROI_CENTER_ROW, ROI_RADIUS } from '../config'
-import { countToCelsius } from './calibration'
+import { calibration, countToCelsius } from './calibration'
 import { rampTableForCounts } from './colormap'
 import { encodePng } from './png'
 import { readFrame, type ThermalFrame } from '../parsers/frame'
 import type { IndexedFrame } from './frameIndex'
 
-/** Melt-pool overlay styling. Shubham asked for a bolder, less transparent red. */
-const MELT_FILL_ALPHA = 0.55
-const MELT_RGB: [number, number, number] = [214, 69, 69]
-const BOUNDARY_RGB: [number, number, number] = [255, 92, 92]
+/**
+ * Melt-pool overlay styling.
+ *
+ * The contour is CYAN, not red. Now that the colour map runs pale-yellow (cool)
+ * to deep red (hot), the molten region is already red — a red contour drawn on
+ * it would be invisible. Cyan sits outside the ramp's warm hues entirely, so it
+ * reads as an annotation rather than as a temperature.
+ *
+ * The fill tint is also gone: tinting the interior would corrupt the very
+ * temperatures this panel exists to show. Shubham's intent — "the hot region
+ * should look red" — is now carried by the colour map itself.
+ */
+const BOUNDARY_RGB: [number, number, number] = [34, 231, 238]
+const BOUNDARY_HALO: [number, number, number] = [8, 60, 70]
 const ROI_RGB: [number, number, number] = [90, 110, 130]
 
 let rampTable: Uint8Array | null = null
@@ -96,7 +106,7 @@ export function renderFrame(
   thresholdCount: number,
   options: RenderOptions,
 ): Buffer {
-  if (!rampTable) rampTable = rampTableForCounts()
+  if (!rampTable) rampTable = rampTableForCounts(calibration())
   const table = rampTable
   const { width, height, data } = frame
 
@@ -127,37 +137,73 @@ export function renderFrame(
 
   if (options.overlay) {
     const mask = meltPoolMask(frame, thresholdCount)
+
+    // Two passes: a dark halo first so the contour stays legible over both the
+    // pale-yellow and deep-red ends of the ramp, then the contour itself.
+    const isEdge = (r: number, c: number, i: number) =>
+      mask[i] === 1 &&
+      (r === 0 ||
+        c === 0 ||
+        r === height - 1 ||
+        c === width - 1 ||
+        !mask[i - 1] ||
+        !mask[i + 1] ||
+        !mask[i - width] ||
+        !mask[i + width])
+
+    for (let r = 1; r < height - 1; r++) {
+      for (let c = 1; c < width - 1; c++) {
+        const i = r * width + c
+        if (isEdge(r, c, i)) continue
+        const touchesEdge =
+          isEdge(r - 1, c, i - width) ||
+          isEdge(r + 1, c, i + width) ||
+          isEdge(r, c - 1, i - 1) ||
+          isEdge(r, c + 1, i + 1)
+        if (!touchesEdge) continue
+        const o = i * 3
+        rgb[o] = blend(rgb[o], BOUNDARY_HALO[0], 0.6)
+        rgb[o + 1] = blend(rgb[o + 1], BOUNDARY_HALO[1], 0.6)
+        rgb[o + 2] = blend(rgb[o + 2], BOUNDARY_HALO[2], 0.6)
+      }
+    }
+
     for (let r = 0; r < height; r++) {
       for (let c = 0; c < width; c++) {
         const i = r * width + c
-        if (!mask[i]) continue
-
-        // A masked pixel touching an unmasked one is on the boundary.
-        const edge =
-          r === 0 ||
-          c === 0 ||
-          r === height - 1 ||
-          c === width - 1 ||
-          !mask[i - 1] ||
-          !mask[i + 1] ||
-          !mask[i - width] ||
-          !mask[i + width]
-
+        if (!isEdge(r, c, i)) continue
         const o = i * 3
-        if (edge) {
-          rgb[o] = BOUNDARY_RGB[0]
-          rgb[o + 1] = BOUNDARY_RGB[1]
-          rgb[o + 2] = BOUNDARY_RGB[2]
-        } else {
-          rgb[o] = blend(rgb[o], MELT_RGB[0], MELT_FILL_ALPHA)
-          rgb[o + 1] = blend(rgb[o + 1], MELT_RGB[1], MELT_FILL_ALPHA)
-          rgb[o + 2] = blend(rgb[o + 2], MELT_RGB[2], MELT_FILL_ALPHA)
-        }
+        rgb[o] = BOUNDARY_RGB[0]
+        rgb[o + 1] = BOUNDARY_RGB[1]
+        rgb[o + 2] = BOUNDARY_RGB[2]
       }
     }
   }
 
   return encodePng(rgb, width, height)
+}
+
+/**
+ * Parsed frames are shared by the PNG, stats and field routes. Without this
+ * each scrub step re-parses the same 140 KB matrix up to three times.
+ */
+const FRAME_CACHE_LIMIT = 64
+const frameCache = new Map<string, ThermalFrame>()
+
+export async function loadFrame(file: string): Promise<ThermalFrame> {
+  const hit = frameCache.get(file)
+  if (hit) {
+    frameCache.delete(file)
+    frameCache.set(file, hit)
+    return hit
+  }
+  const frame = await readFrame(file)
+  frameCache.set(file, frame)
+  if (frameCache.size > FRAME_CACHE_LIMIT) {
+    const oldest = frameCache.keys().next().value
+    if (oldest !== undefined) frameCache.delete(oldest)
+  }
+  return frame
 }
 
 /** Small LRU so scrubbing back and forth within a layer stays instant. */
@@ -176,7 +222,7 @@ export async function renderIndexedFrame(
     return hit
   }
 
-  const frame = await readFrame(ref.file)
+  const frame = await loadFrame(ref.file)
   const png = renderFrame(frame, ref.thresholdCount, options)
 
   pngCache.set(key, png)
@@ -191,6 +237,6 @@ export async function statsForIndexedFrame(
   ref: IndexedFrame,
   meltThresholdC: number,
 ): Promise<FrameStats> {
-  const frame = await readFrame(ref.file)
+  const frame = await loadFrame(ref.file)
   return computeStats(frame, ref, meltThresholdC)
 }

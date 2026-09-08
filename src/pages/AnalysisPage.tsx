@@ -29,6 +29,14 @@ import {
 } from '../api/thermal'
 import { useAnalysisUiStore } from '../store/sessionStore'
 import { ThermalProfilePanel } from '../components/analysis/ThermalProfilePanel'
+import { ThermalSurface3D } from '../components/analysis/ThermalSurface3D'
+import { ThermalZones3D } from '../components/analysis/ThermalZones3D'
+import {
+  getCalibration,
+  getThermalField,
+  type Calibration,
+  type ThermalField,
+} from '../api/thermalField'
 import { MeltPoolImagesPanel } from '../components/analysis/MeltPoolImagesPanel'
 import { AppShell } from '../components/layout/AppShell'
 import { Panel } from '../components/ui/Panel'
@@ -69,6 +77,12 @@ export function AnalysisPage() {
   const [frameStats, setFrameStats] = useState<ThermalFrameStats | null>(null)
   const [loadingThermal, setLoadingThermal] = useState(false)
   const [thermalError, setThermalError] = useState<string | null>(null)
+  const [field, setField] = useState<ThermalField | null>(null)
+  const [calibration, setCalibration] = useState<Calibration | null>(null)
+  const [fieldError, setFieldError] = useState<string | null>(null)
+
+  /** Assumed lower band edge — only the machine's melt threshold is authoritative. */
+  const TRANSITION_C = 1400
 
   const mode = session?.config.mode === 'alloy' ? 'alloy' : 'process'
   const WINDOW = 24
@@ -231,6 +245,46 @@ export function AnalysisPage() {
     }
   }, [sessionId, mode, thermalLayer, thermalPos])
 
+  // Calibration is memoised at module level; this just mirrors it into state.
+  useEffect(() => {
+    if (mode !== 'alloy') return
+    let cancelled = false
+    getCalibration()
+      .then((c) => {
+        if (!cancelled) setCalibration(c)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setFieldError(
+            err instanceof Error ? err.message : 'Could not load calibration',
+          )
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [mode])
+
+  // The raw temperature field for the current frame; feeds both 3D panels.
+  const buildId = thermalIndex?.buildId
+  useEffect(() => {
+    if (mode !== 'alloy' || !buildId || thermalLayer === null) return
+    const controller = new AbortController()
+
+    getThermalField(buildId, thermalLayer, thermalPos, 2, controller.signal)
+      .then((f) => {
+        setField(f)
+        setFieldError(null)
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return
+        setField(null)
+        setFieldError(err instanceof Error ? err.message : 'Could not load field')
+      })
+
+    return () => controller.abort()
+  }, [mode, buildId, thermalLayer, thermalPos])
+
   const thermalLayers = thermalIndex?.layers ?? []
 
   /**
@@ -357,10 +411,32 @@ export function AnalysisPage() {
             )}
           </Panel>
           <Panel title="3D reconstruction">
-            <Reconstruction3D data={recon} loading={loading3d} />
+            {mode === 'alloy' ? (
+              <ThermalSurface3D
+                field={field}
+                calibration={calibration}
+                meltThresholdC={thermalIndex?.meltThresholdC ?? 1560}
+                loading={loadingThermal || !field}
+                error={fieldError}
+              />
+            ) : (
+              <Reconstruction3D data={recon} loading={loading3d} />
+            )}
           </Panel>
           <Panel title="Three color 3D image">
-            <ThreeColor3D data={threeColor} loading={loading3d} />
+            {mode === 'alloy' ? (
+              <ThermalZones3D
+                field={field}
+                calibration={calibration}
+                thresholdCount={497}
+                meltThresholdC={thermalIndex?.meltThresholdC ?? 1560}
+                transitionC={TRANSITION_C}
+                loading={loadingThermal || !field}
+                error={fieldError}
+              />
+            ) : (
+              <ThreeColor3D data={threeColor} loading={loading3d} />
+            )}
           </Panel>
         </div>
 

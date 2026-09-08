@@ -124,3 +124,43 @@ export async function mockGetThermalStats(
     thresholdC: 1560,
   }
 }
+
+/** Synthetic calibration: monotonic, same 980-2008 °C range as the real one. */
+export async function mockGetCalibration(): Promise<{
+  minC: number
+  maxC: number
+  celsius: number[]
+}> {
+  await delay(40)
+  const celsius: number[] = []
+  for (let i = 0; i < 4096; i++) {
+    // Mirrors the real curve's shape: steep at the bottom, flattening off.
+    celsius.push(Math.round(980 + 1028 * Math.pow(i / 4095, 0.35)))
+  }
+  return { minC: 980, maxC: 2008, celsius }
+}
+
+/** A radial hot spot so the 3D panels have something to render in demo mode. */
+export async function mockGetThermalField(
+  buildId: string,
+  layer: number,
+  position: number,
+): Promise<{ width: number; height: number; counts: Uint16Array }> {
+  await delay(50)
+  void buildId
+  const width = 109
+  const height = 82
+  const counts = new Uint16Array(width * height)
+  const cx = width / 2 + Math.sin(position / 5) * 6
+  const cy = height / 2 + Math.cos(position / 7) * 4
+  const radius = 22 + layer * 0.2 + Math.sin(position / 3) * 2
+
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      const d = Math.hypot(c - cx, r - cy) / radius
+      const t = Math.exp(-d * d * 1.6)
+      counts[r * width + c] = Math.round(t * 4095)
+    }
+  }
+  return { width, height, counts }
+}

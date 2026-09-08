@@ -10,7 +10,13 @@ import { getCatalog } from './services/catalog'
 
 const app = express()
 
-app.use(cors())
+app.use(
+  cors({
+    // The field endpoint reports its dimensions in headers; without this the
+    // browser hides them from fetch().
+    exposedHeaders: ['X-Frame-Width', 'X-Frame-Height', 'X-Frame-Stride'],
+  }),
+)
 app.use(express.json({ limit: '1mb' }))
 
 app.get('/health', (_req, res) => {

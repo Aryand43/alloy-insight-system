@@ -39,3 +39,16 @@ export async function apiFetch<T>(
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
+
+/** Binary variant of apiFetch, for the raw temperature field. */
+export async function apiFetchBinary(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const res = await fetch(`${baseUrl()}${path}`, init)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new ApiError(body || res.statusText || 'Request failed', res.status)
+  }
+  return res
+}

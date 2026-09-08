@@ -7,7 +7,11 @@ import type {
 import { PUBLIC_BASE_URL } from '../config'
 import { calibration } from '../services/calibration'
 import { getFrameIndex, type IndexedFrame, type IndexedLayer } from '../services/frameIndex'
-import { renderIndexedFrame, statsForIndexedFrame } from '../services/thermal'
+import {
+  loadFrame,
+  renderIndexedFrame,
+  statsForIndexedFrame,
+} from '../services/thermal'
 import type { CatalogEntry } from '../services/catalog'
 import { HttpError, requireBuild, resolveSession, thresholdsFrom } from './helpers'
 import { CorruptFrameError } from '../parsers/frame'
@@ -59,7 +63,17 @@ thermalRouter.get('/sessions/:id/thermal/layers', async (req, res) => {
     buildId: entry.id,
     meltThresholdC: index.meltThresholdC,
     tempRangeC: [lut[0], lut[lut.length - 1]],
-    frameSize: { width: 218, height: 164 },
+    frameSize: await (async () => {
+      // Derive rather than hardcode — readFrame infers dimensions per file.
+      const first = index.layers[0]?.frames[0]
+      if (!first) return { width: 0, height: 0 }
+      try {
+        const f = await loadFrame(first.file)
+        return { width: f.width, height: f.height }
+      } catch {
+        return { width: 0, height: 0 }
+      }
+    })(),
     totalFrames: index.totalFrames,
     matchedFrames: index.matchedFrames,
     layers: index.layers.map((l) => {
@@ -128,6 +142,66 @@ thermalRouter.get(
         index.meltThresholdC,
       )
       res.json(body)
+    } catch (err) {
+      if (err instanceof CorruptFrameError) throw new HttpError(err.message, 422)
+      throw err
+    }
+  },
+)
+
+/** The calibration table, so the client can turn raw counts into °C itself. */
+thermalRouter.get('/calibration', (_req, res) => {
+  const lut = calibration()
+  res.setHeader('Cache-Control', 'public, max-age=86400')
+  res.json({
+    minC: lut[0],
+    maxC: lut[lut.length - 1],
+    /** 4096 entries: index is the raw 12-bit count, value is °C. */
+    celsius: Array.from(lut),
+  })
+})
+
+/**
+ * Raw temperature field for one frame, as Uint16LE camera counts.
+ *
+ * Sent as binary rather than JSON: the full field is 71.5 KB raw against
+ * roughly 200 KB of JSON, and the client needs a typed array anyway to feed
+ * vertex buffers. `stride` decimates for the 3D views — stride 2 gives
+ * 82 x 109 (~12.5 KB) which is ample relief and sustains 10 Hz playback.
+ */
+thermalRouter.get(
+  '/builds/:buildId/layers/:layer/frames/:pos/field.bin',
+  async (req, res) => {
+    const entry = await requireBuild(req.params.buildId)
+    requireThermal(entry)
+    const index = await getFrameIndex(entry)
+    const layer = pickLayer(index, req.params.layer)
+    const ref = pickFrame(layer, req.params.pos)
+
+    const rawStride = Number(req.query.stride)
+    const stride =
+      Number.isInteger(rawStride) && rawStride >= 1 && rawStride <= 8
+        ? rawStride
+        : 1
+
+    try {
+      const frame = await loadFrame(ref.file)
+      const cols = Math.ceil(frame.width / stride)
+      const rows = Math.ceil(frame.height / stride)
+
+      const out = new Uint16Array(cols * rows)
+      let w = 0
+      for (let r = 0; r < frame.height; r += stride) {
+        for (let c = 0; c < frame.width; c += stride) {
+          out[w++] = frame.data[r * frame.width + c]
+        }
+      }
+
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+      res.setHeader('X-Frame-Width', String(cols))
+      res.setHeader('X-Frame-Height', String(rows))
+      res.setHeader('X-Frame-Stride', String(stride))
+      res.type('application/octet-stream').send(Buffer.from(out.buffer))
     } catch (err) {
       if (err instanceof CorruptFrameError) throw new HttpError(err.message, 422)
       throw err
