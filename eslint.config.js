@@ -31,7 +31,7 @@ export default tseslint.config(
   },
   {
     // The data bridge runs on Node, not in the browser.
-    files: ['server/**/*.ts'],
+    files: ['server/**/*.ts', 'scripts/**/*.ts', 'api/**/*.ts'],
     languageOptions: { globals: globals.node },
     rules: { 'react-hooks/rules-of-hooks': 'off' },
   },

@@ -25,3 +25,7 @@ dist-ssr
 # Research corpus — ~33 GB and ~195k files, kept out of version control.
 # Point the data bridge at it with BACKEND_DATA_DIR if it lives elsewhere.
 Backend-Data/
+
+# Hosted-demo subset generated from Backend-Data by scripts/build-demo-data.ts.
+# Unpublished research data — never commit it to a public repo.
+demo-data/

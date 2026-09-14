@@ -1,0 +1,21 @@
+# Allowlist: upload only what the hosted demo needs.
+#
+# The Vercel CLI reads ONLY this file when choosing what to upload — it does
+# not apply the patterns in .gitignore. Without it, a deploy would try to
+# upload the full Backend-Data corpus (~33 GB of unpublished research data).
+/*
+!api
+!server
+!src
+!public
+!demo-data
+!index.html
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.app.json
+!tsconfig.node.json
+!tsconfig.server.json
+!vite.config.ts
+!vercel.json
+!.env.demo

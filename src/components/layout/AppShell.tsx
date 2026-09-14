@@ -25,6 +25,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, compact = false, trailing }: AppShellProps) {
+  const demoNote = import.meta.env.VITE_DEMO_NOTE
   return (
     <div className="app-atmosphere relative min-h-dvh">
       <div className="relative z-10 flex min-h-dvh flex-col">
@@ -47,6 +48,11 @@ export function AppShell({ children, compact = false, trailing }: AppShellProps)
           </Link>
           {trailing}
         </header>
+        {demoNote && (
+          <div className="border-b border-signal-yellow/20 bg-signal-yellow/5 px-4 py-1.5 text-center font-mono text-[11px] text-signal-yellow/90">
+            {demoNote}
+          </div>
+        )}
         <main className="flex flex-1 flex-col">{children}</main>
       </div>
     </div>
