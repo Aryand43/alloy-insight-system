@@ -7,9 +7,9 @@ import type {
   ThresholdOverlay,
   ThresholdStats,
   ThreeColorPayload,
-} from '../../../src/domain/types'
-import type { CatalogEntry } from './catalog'
-import type { LayerPoint, LayerSeries } from './layers'
+} from '../../../src/domain/types.js'
+import type { CatalogEntry } from './catalog.js'
+import type { LayerPoint, LayerSeries } from './layers.js'
 
 /** Overall build height the normalised meshes are scaled to fill, in scene units. */
 const SCENE_HEIGHT = 1.8

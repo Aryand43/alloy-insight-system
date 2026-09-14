@@ -1,9 +1,9 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { Router } from 'express'
-import { layerProfileSvg, layerThumbnailSvg, type ChartKind } from '../services/charts'
-import { getLayerSeries } from '../services/layers'
-import { HttpError, requireBuild, thresholdsFrom } from './helpers'
+import { layerProfileSvg, layerThumbnailSvg, type ChartKind } from '../services/charts.js'
+import { getLayerSeries } from '../services/layers.js'
+import { HttpError, requireBuild, thresholdsFrom } from './helpers.js'
 
 export const assetsRouter = Router()
 

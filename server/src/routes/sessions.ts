@@ -6,17 +6,17 @@ import type {
   ThresholdOverlay,
   ThresholdStats,
   ThreeColorPayload,
-} from '../../../src/domain/types'
+} from '../../../src/domain/types.js'
 import {
   buildReconstruction,
   buildStats,
   buildThreeColor,
   buildThreshold,
-} from '../services/analysis'
-import { buildFrames, kivSizeUrl, kivTempUrl } from '../services/frames'
-import { getLayerSeries, layerFromFrameId } from '../services/layers'
-import { createSession } from '../services/sessions'
-import { HttpError, requireBuild, resolveSession, thresholdsFrom } from './helpers'
+} from '../services/analysis.js'
+import { buildFrames, kivSizeUrl, kivTempUrl } from '../services/frames.js'
+import { getLayerSeries, layerFromFrameId } from '../services/layers.js'
+import { createSession } from '../services/sessions.js'
+import { HttpError, requireBuild, resolveSession, thresholdsFrom } from './helpers.js'
 
 export const sessionsRouter = Router()
 

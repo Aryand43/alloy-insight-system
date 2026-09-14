@@ -1,6 +1,6 @@
-import { app } from './app'
-import { BACKEND_DATA_DIR, PORT, PUBLIC_BASE_URL } from './config'
-import { getCatalog } from './services/catalog'
+import { app } from './app.js'
+import { BACKEND_DATA_DIR, PORT, PUBLIC_BASE_URL } from './config.js'
+import { getCatalog } from './services/catalog.js'
 
 async function main(): Promise<void> {
   try {

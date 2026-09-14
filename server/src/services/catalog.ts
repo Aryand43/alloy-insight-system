@@ -1,15 +1,15 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import type { BuildSummary } from '../../../src/domain/types'
-import { decodeBuildId, describeBuild, targetHeightMm } from '../buildId'
-import { readCouponQuality } from '../parsers/xlsx'
+import type { BuildSummary } from '../../../src/domain/types.js'
+import { decodeBuildId, describeBuild, targetHeightMm } from '../buildId.js'
+import { readCouponQuality } from '../parsers/xlsx.js'
 import {
   COUPON_QUALITY_XLSX,
   DMG_DIR,
   KIV_DIR,
   MEANSIZE_DIR,
   MEANTEMP_DIR,
-} from '../config'
+} from '../config.js'
 
 export interface CatalogEntry extends BuildSummary {
   meanTempFile: string

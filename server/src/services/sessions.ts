@@ -3,10 +3,10 @@ import type {
   AnalysisMode,
   AnalysisSession,
   SessionConfig,
-} from '../../../src/domain/types'
-import { getMaterialById, MATERIALS } from '../../../src/domain/materials'
-import { decodeBuildId } from '../buildId'
-import type { CatalogEntry } from './catalog'
+} from '../../../src/domain/types.js'
+import { getMaterialById, MATERIALS } from '../../../src/domain/materials.js'
+import { decodeBuildId } from '../buildId.js'
+import type { CatalogEntry } from './catalog.js'
 
 const sessions = new Map<string, AnalysisSession>()
 

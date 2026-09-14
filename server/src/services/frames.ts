@@ -1,7 +1,7 @@
-import type { Frame } from '../../../src/domain/types'
-import { PUBLIC_BASE_URL } from '../config'
-import type { CatalogEntry } from './catalog'
-import type { LayerSeries } from './layers'
+import type { Frame } from '../../../src/domain/types.js'
+import { PUBLIC_BASE_URL } from '../config.js'
+import type { CatalogEntry } from './catalog.js'
+import type { LayerSeries } from './layers.js'
 
 function assetBase(buildId: string, layer: number): string {
   return `${PUBLIC_BASE_URL}/builds/${encodeURIComponent(buildId)}/layers/${layer}`

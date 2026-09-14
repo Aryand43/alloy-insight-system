@@ -1,4 +1,4 @@
-import type { LayerPoint, LayerSeries } from './layers'
+import type { LayerPoint, LayerSeries } from './layers.js'
 
 const BG = '#0d1117'
 const GRID = '#243040'

@@ -1,13 +1,13 @@
 import type { Request } from 'express'
-import { getBuild, type CatalogEntry } from '../services/catalog'
+import { getBuild, type CatalogEntry } from '../services/catalog.js'
 import {
   DEFAULT_THRESHOLDS,
   getLayerSeries,
   type LayerSeries,
   type Thresholds,
-} from '../services/layers'
-import { buildIdFromSessionId, getStoredSession, reviveSession } from '../services/sessions'
-import type { AnalysisSession } from '../../../src/domain/types'
+} from '../services/layers.js'
+import { buildIdFromSessionId, getStoredSession, reviveSession } from '../services/sessions.js'
+import type { AnalysisSession } from '../../../src/domain/types.js'
 
 export class HttpError extends Error {
   constructor(

@@ -1,9 +1,9 @@
-import { ROI_CENTER_COL, ROI_CENTER_ROW, ROI_RADIUS } from '../config'
-import { calibration, countToCelsius } from './calibration'
-import { rampTableForCounts } from './colormap'
-import { encodePng } from './png'
-import { readFrame, type ThermalFrame } from '../parsers/frame'
-import type { IndexedFrame } from './frameIndex'
+import { ROI_CENTER_COL, ROI_CENTER_ROW, ROI_RADIUS } from '../config.js'
+import { calibration, countToCelsius } from './calibration.js'
+import { rampTableForCounts } from './colormap.js'
+import { encodePng } from './png.js'
+import { readFrame, type ThermalFrame } from '../parsers/frame.js'
+import type { IndexedFrame } from './frameIndex.js'
 
 /**
  * Melt-pool overlay styling.

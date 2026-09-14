@@ -3,18 +3,18 @@ import type {
   ThermalFrameStats,
   ThermalFrameWindow,
   ThermalLayerIndex,
-} from '../../../src/domain/types'
-import { PUBLIC_BASE_URL } from '../config'
-import { calibration } from '../services/calibration'
-import { getFrameIndex, type IndexedFrame, type IndexedLayer } from '../services/frameIndex'
+} from '../../../src/domain/types.js'
+import { PUBLIC_BASE_URL } from '../config.js'
+import { calibration } from '../services/calibration.js'
+import { getFrameIndex, type IndexedFrame, type IndexedLayer } from '../services/frameIndex.js'
 import {
   loadFrame,
   renderIndexedFrame,
   statsForIndexedFrame,
-} from '../services/thermal'
-import type { CatalogEntry } from '../services/catalog'
-import { HttpError, requireBuild, resolveSession, thresholdsFrom } from './helpers'
-import { CorruptFrameError } from '../parsers/frame'
+} from '../services/thermal.js'
+import type { CatalogEntry } from '../services/catalog.js'
+import { HttpError, requireBuild, resolveSession, thresholdsFrom } from './helpers.js'
+import { CorruptFrameError } from '../parsers/frame.js'
 
 export const thermalRouter = Router()
 

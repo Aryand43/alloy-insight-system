@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { CAMERA_CALIBRATION } from '../config'
+import { CAMERA_CALIBRATION } from '../config.js'
 
 /**
  * The camera's raw counts are 12-bit, so the calibration is a dense 4096-entry

@@ -1,4 +1,4 @@
-import { ramp } from '../../../src/domain/thermalColor'
+import { ramp } from '../../../src/domain/thermalColor.js'
 
 export { ramp }
 

@@ -1,7 +1,7 @@
 // Must stay the first import: config.ts reads these defaults at load time.
-import '../server/src/vercelEnv'
+import '../server/src/vercelEnv.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { app } from '../server/src/app'
+import { app } from '../server/src/app.js'
 
 /**
  * Vercel function entry. vercel.json rewrites every /api/* request here; the

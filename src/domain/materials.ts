@@ -1,4 +1,4 @@
-import type { MaterialOption, ProcessType } from './types'
+import type { MaterialOption, ProcessType } from './types.js'
 
 export const MATERIALS: MaterialOption[] = [
   { id: '316l-ss', label: '316L SS', defaultMeltTempC: 1450 },

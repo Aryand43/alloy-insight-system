@@ -1,12 +1,12 @@
-import type { AlertLevel } from '../../../src/domain/types'
-import { readLayerSheet, zFromLabel } from '../parsers/xlsx'
+import type { AlertLevel } from '../../../src/domain/types.js'
+import { readLayerSheet, zFromLabel } from '../parsers/xlsx.js'
 import {
   DEFAULT_SIZE_STABLE_PCT,
   DEFAULT_SIZE_TRANSITION_PCT,
   DEFAULT_TEMP_STABLE_PCT,
   DEFAULT_TEMP_TRANSITION_PCT,
-} from '../config'
-import type { CatalogEntry } from './catalog'
+} from '../config.js'
+import type { CatalogEntry } from './catalog.js'
 
 export interface Thresholds {
   tempStablePct: number

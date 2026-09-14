@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { FRAME_MATCH_TOLERANCE_MS } from '../config'
-import { nearestIndex, readDataDat } from '../parsers/dataDat'
-import type { CatalogEntry } from './catalog'
-import { getLayerSeries, type LayerSeries } from './layers'
+import { FRAME_MATCH_TOLERANCE_MS } from '../config.js'
+import { nearestIndex, readDataDat } from '../parsers/dataDat.js'
+import type { CatalogEntry } from './catalog.js'
+import { getLayerSeries, type LayerSeries } from './layers.js'
 
 export interface IndexedFrame {
   /** Position within its layer, 0-based. */

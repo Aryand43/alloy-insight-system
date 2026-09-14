@@ -1,11 +1,11 @@
 import express, { type NextFunction, type Request, type Response } from 'express'
 import cors from 'cors'
-import { BACKEND_DATA_DIR } from './config'
-import { assetsRouter } from './routes/assets'
-import { catalogRouter } from './routes/catalog'
-import { HttpError } from './routes/helpers'
-import { sessionsRouter } from './routes/sessions'
-import { thermalRouter } from './routes/thermal'
+import { BACKEND_DATA_DIR } from './config.js'
+import { assetsRouter } from './routes/assets.js'
+import { catalogRouter } from './routes/catalog.js'
+import { HttpError } from './routes/helpers.js'
+import { sessionsRouter } from './routes/sessions.js'
+import { thermalRouter } from './routes/thermal.js'
 
 /**
  * The Express app, shared by the local dev server (`index.ts`) and the Vercel
