@@ -145,7 +145,7 @@ export async function mockGetThermalField(
   buildId: string,
   layer: number,
   position: number,
-): Promise<{ width: number; height: number; counts: Uint16Array }> {
+): Promise<{ width: number; height: number; stride: number; counts: Uint16Array }> {
   await delay(50)
   void buildId
   const width = 109
@@ -162,5 +162,6 @@ export async function mockGetThermalField(
       counts[r * width + c] = Math.round(t * 4095)
     }
   }
-  return { width, height, counts }
+  // Mirrors a stride-2 real field (218x164 camera frame).
+  return { width, height, stride: 2, counts }
 }

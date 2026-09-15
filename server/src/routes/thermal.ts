@@ -143,7 +143,10 @@ thermalRouter.get(
       )
       res.json(body)
     } catch (err) {
-      if (err instanceof CorruptFrameError) throw new HttpError(err.message, 422)
+      if (err instanceof CorruptFrameError) {
+        console.warn(`[thermal] unreadable frame ${err.detail}`)
+        throw new HttpError(err.message, 422)
+      }
       throw err
     }
   },
@@ -203,7 +206,10 @@ thermalRouter.get(
       res.setHeader('X-Frame-Stride', String(stride))
       res.type('application/octet-stream').send(Buffer.from(out.buffer))
     } catch (err) {
-      if (err instanceof CorruptFrameError) throw new HttpError(err.message, 422)
+      if (err instanceof CorruptFrameError) {
+        console.warn(`[thermal] unreadable frame ${err.detail}`)
+        throw new HttpError(err.message, 422)
+      }
       throw err
     }
   },
@@ -227,7 +233,10 @@ thermalRouter.get(
       res.setHeader('Cache-Control', 'public, max-age=3600')
       res.type('image/png').send(png)
     } catch (err) {
-      if (err instanceof CorruptFrameError) throw new HttpError(err.message, 422)
+      if (err instanceof CorruptFrameError) {
+        console.warn(`[thermal] unreadable frame ${err.detail}`)
+        throw new HttpError(err.message, 422)
+      }
       throw err
     }
   },

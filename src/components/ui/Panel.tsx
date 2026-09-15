@@ -16,7 +16,7 @@ export function Panel({ title, actions, className = '', children }: PanelProps) 
       ].join(' ')}
     >
       <header className="flex items-center justify-between gap-3 border-b border-steel-700/40 px-3 py-2">
-        <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-steel-400">
+        <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-steel-400">
           {title}
         </h2>
         {actions}

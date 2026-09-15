@@ -55,10 +55,11 @@ export function layerProfileSvg(
 ): string {
   const W = 640
   const H = 420
-  const L = 64
-  const R = 18
-  const T = 46
-  const B = 40
+  // Sized for legibility when the 640px chart is drawn at panel size.
+  const L = 84
+  const R = 24
+  const T = 72
+  const B = 56
   const pw = W - L - R
   const ph = H - T - B
 
@@ -89,7 +90,7 @@ export function layerProfileSvg(
     const yy = round(y(v))
     gridLines.push(
       `<line x1="${L}" y1="${yy}" x2="${L + pw}" y2="${yy}" stroke="${GRID}" stroke-width="1"/>`,
-      `<text x="${L - 8}" y="${yy + 4}" fill="${TEXT}" font-size="11" text-anchor="end">${v.toFixed(decimals)}</text>`,
+      `<text x="${L - 10}" y="${yy + 6}" fill="${TEXT}" font-size="17" text-anchor="end">${v.toFixed(decimals)}</text>`,
     )
   }
 
@@ -99,7 +100,7 @@ export function layerProfileSvg(
     const xx = round(x(i))
     xTicks.push(
       `<line x1="${xx}" y1="${T + ph}" x2="${xx}" y2="${T + ph + 4}" stroke="${AXIS}" stroke-width="1"/>`,
-      `<text x="${xx}" y="${T + ph + 18}" fill="${TEXT}" font-size="11" text-anchor="middle">${i + 1}</text>`,
+      `<text x="${xx}" y="${T + ph + 26}" fill="${TEXT}" font-size="17" text-anchor="middle">${i + 1}</text>`,
     )
   }
 
@@ -120,14 +121,14 @@ export function layerProfileSvg(
         const drift = kind === 'temp' ? point.tempDriftPct : point.sizeDriftPct
         const labelRight = mx < L + pw * 0.65
         return `
-  <line x1="${mx}" y1="${T}" x2="${mx}" y2="${T + ph}" stroke="${colour}" stroke-width="1.5" stroke-dasharray="4 3"/>
-  <circle cx="${mx}" cy="${my}" r="5" fill="${colour}" stroke="${BG}" stroke-width="1.5"/>
-  <text x="${labelRight ? mx + 10 : mx - 10}" y="${Math.max(T + 14, my - 12)}"
-        fill="${TEXT_BRIGHT}" font-size="13" text-anchor="${labelRight ? 'start' : 'end'}">
+  <line x1="${mx}" y1="${T}" x2="${mx}" y2="${T + ph}" stroke="${colour}" stroke-width="2" stroke-dasharray="5 4"/>
+  <circle cx="${mx}" cy="${my}" r="7" fill="${colour}" stroke="${BG}" stroke-width="1.5"/>
+  <text x="${labelRight ? mx + 14 : mx - 14}" y="${Math.max(T + 22, my - 18)}"
+        fill="${TEXT_BRIGHT}" font-size="21" text-anchor="${labelRight ? 'start' : 'end'}">
     L${layer} · ${mv.toFixed(decimals)} ${unit}
   </text>
-  <text x="${labelRight ? mx + 10 : mx - 10}" y="${Math.max(T + 30, my + 4)}"
-        fill="${colour}" font-size="12" text-anchor="${labelRight ? 'start' : 'end'}">
+  <text x="${labelRight ? mx + 14 : mx - 14}" y="${Math.max(T + 46, my + 10)}"
+        fill="${colour}" font-size="18" text-anchor="${labelRight ? 'start' : 'end'}">
     ${drift >= 0 ? '+' : ''}${drift.toFixed(1)}% vs median
   </text>`
       })()
@@ -135,16 +136,16 @@ export function layerProfileSvg(
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="IBM Plex Sans, system-ui, sans-serif">
   <rect width="${W}" height="${H}" fill="${BG}"/>
-  <text x="${L}" y="22" fill="${TEXT_BRIGHT}" font-size="14">${esc(title)}</text>
-  <text x="${L}" y="38" fill="${TEXT}" font-size="11">${esc(series.buildId)} · ${n} layers · median ${ref.toFixed(decimals)} ${unit} · generated from spreadsheet (no KIV image for this build)</text>
+  <text x="${L}" y="30" fill="${TEXT_BRIGHT}" font-size="24">${esc(title)}</text>
+  <text x="${L}" y="56" fill="${TEXT}" font-size="17">${esc(series.buildId)} · ${n} layers · median ${ref.toFixed(decimals)} ${unit} · from layer means</text>
   <rect x="${L}" y="${bandTop}" width="${pw}" height="${round(bandBottom - bandTop)}" fill="${LEVEL_COLOR.stable}" opacity="0.10"/>
   <line x1="${L}" y1="${round(y(ref))}" x2="${L + pw}" y2="${round(y(ref))}" stroke="${LEVEL_COLOR.stable}" stroke-width="1" stroke-dasharray="6 4" opacity="0.7"/>
   ${gridLines.join('\n  ')}
-  <path d="${path}" fill="none" stroke="${LINE}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="${path}" fill="none" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>
   ${xTicks.join('\n  ')}
   <line x1="${L}" y1="${T + ph}" x2="${L + pw}" y2="${T + ph}" stroke="${AXIS}" stroke-width="1"/>
   <line x1="${L}" y1="${T}" x2="${L}" y2="${T + ph}" stroke="${AXIS}" stroke-width="1"/>
-  <text x="${L + pw / 2}" y="${H - 6}" fill="${TEXT}" font-size="11" text-anchor="middle">Layer</text>
+  <text x="${L + pw / 2}" y="${H - 8}" fill="${TEXT}" font-size="17" text-anchor="middle">Layer</text>
   ${marker}
 </svg>`
 }
@@ -180,7 +181,7 @@ export function layerThumbnailSvg(
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" width="${S}" height="${S}">
   <rect width="${S}" height="${S}" fill="${BG}"/>
-  <path d="${path}" fill="none" stroke="${AXIS}" stroke-width="1.5"/>
+  <path d="${path}" fill="none" stroke="${TEXT}" stroke-width="2.5"/>
   <line x1="${mx}" y1="${pad - 2}" x2="${mx}" y2="${S - pad + 2}" stroke="${colour}" stroke-width="1"/>
   <circle cx="${mx}" cy="${round(y(mv))}" r="3" fill="${colour}"/>
 </svg>`

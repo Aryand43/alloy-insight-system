@@ -22,6 +22,10 @@
   --color-signal-green: #3d9a6a;
   --color-signal-yellow: #e8b84a;
   --color-signal-amber: #c9922a;
+  /* Readable red for text on dark panels; signal-red itself is below AA as text. */
+  --color-signal-red-text: #ef8a8a;
+  /* Melt-pool contour drawn into thermal frames (server BOUNDARY_RGB). */
+  --color-melt-boundary: #22e7ee;
 }
 
 :root {
@@ -80,4 +84,17 @@ body {
     rgba(20, 26, 34, 0.75) 100%
   );
   border: 1px solid rgba(138, 154, 171, 0.14);
+}
+
+/*
+ * Analysis visual heights. The top row carries the primary content (profile and
+ * melt-pool frames), so it is taller; both scale with the viewport so the main
+ * image stays legible when screen-shared or projected.
+ */
+.viz-primary {
+  height: clamp(240px, 38vh, 460px);
+}
+
+.viz-secondary {
+  height: clamp(210px, 30vh, 360px);
 }

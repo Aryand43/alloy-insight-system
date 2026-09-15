@@ -29,3 +29,4 @@ Backend-Data/
 # Hosted-demo subset generated from Backend-Data by scripts/build-demo-data.ts.
 # Unpublished research data — never commit it to a public repo.
 demo-data/
+.vercel

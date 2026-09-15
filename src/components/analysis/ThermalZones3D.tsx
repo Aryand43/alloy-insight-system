@@ -19,12 +19,6 @@ const ZONE_COLOR: Record<Zone, string> = {
   below: '#fed976',
 }
 
-const ZONE_LABEL: Record<Zone, string> = {
-  molten: 'Molten',
-  transition: 'Transition',
-  below: 'Below',
-}
-
 const ZONES: Zone[] = ['molten', 'transition', 'below']
 
 /** Cell size in source pixels. 8 gives ~28x21 cells over a 218x164 frame. */
@@ -178,22 +172,29 @@ export function ThermalZones3D({
 
   if (error) {
     return (
-      <div className="flex h-full min-h-[180px] items-center justify-center px-4 text-center text-xs text-signal-red">
+      <div className="viz-secondary flex items-center justify-center px-6 text-center text-sm text-signal-red-text">
         {error}
       </div>
     )
   }
   if (!built) {
     return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        {loading ? 'Classifying thermal zones…' : 'No thermal field'}
+      <div className="viz-secondary flex items-center justify-center px-6 text-center text-sm text-steel-400">
+        {loading ? 'Loading thermal zones…' : 'No temperature data for this frame.'}
       </div>
     )
   }
 
+  // Named as temperature bands, never as phases or microstructure.
+  const zoneLabel: Record<Zone, string> = {
+    molten: 'Above melt threshold',
+    transition: `${transitionC.toFixed(0)}–${meltThresholdC.toFixed(0)} °C`,
+    below: `Below ${transitionC.toFixed(0)} °C`,
+  }
+
   return (
-    <div className="flex h-full min-h-[180px] flex-col gap-2">
-      <div className="flex-1 overflow-hidden rounded-sm bg-steel-950/50">
+    <div className="flex flex-col gap-2">
+      <div className="viz-secondary overflow-hidden rounded-sm bg-steel-950/50">
         <Canvas
           camera={{ position: [3.4, 2.6, 3.4], fov: 40 }}
           dpr={[1, 1.5]}
@@ -214,20 +215,23 @@ export function ThermalZones3D({
           <OrbitControls enablePan={false} minDistance={2} maxDistance={9} />
         </Canvas>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-steel-300">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-300">
         {ZONES.map((z) => (
           <span key={z} className="inline-flex items-center gap-1.5">
             <span
+              aria-hidden
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: ZONE_COLOR[z] }}
             />
-            {ZONE_LABEL[z]} {built.pct[z]}%
+            {zoneLabel[z]} <span className="font-mono text-steel-200">{built.pct[z]}%</span>
           </span>
         ))}
       </div>
-      <p className="font-mono text-[10px] text-steel-500">
-        molten &gt; {meltThresholdC.toFixed(0)} °C (machine) · transition ≥{' '}
-        {transitionC.toFixed(0)} °C (assumed) · measured bands, not microstructure
+      <p className="text-xs text-steel-400">
+        Temperature bands from the camera frame, not microstructure ·{' '}
+        <span className="font-mono text-steel-300">{meltThresholdC.toFixed(0)} °C</span> from
+        machine log · <span className="font-mono text-steel-300">{transitionC.toFixed(0)} °C</span>{' '}
+        assumed
       </p>
     </div>
   )

@@ -1,6 +1,6 @@
-# Connecting Backend-Data to the Alloy Insight Dashboard
+# Connecting Backend-Data to the Process Insight Dashboard
 
-> Plan for wiring the real research files in `Backend-Data/` to the Alloy Insight dashboard.
+> Plan for wiring the real research files in `Backend-Data/` to the Process Insight dashboard.
 
 ## The big picture (in plain terms)
 
@@ -16,7 +16,7 @@ Think of it like this:
 flowchart LR
   Files["Backend-Data folder\n(spreadsheets + images)"]
   Bridge["Data bridge\nreads and organises files"]
-  Dashboard["Alloy Insight dashboard\nwhat you see on screen"]
+  Dashboard["Process Insight dashboard\nwhat you see on screen"]
   Files --> Bridge --> Dashboard
 ```
 

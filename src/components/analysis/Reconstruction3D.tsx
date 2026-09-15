@@ -37,18 +37,10 @@ interface Reconstruction3DProps {
 }
 
 export function Reconstruction3D({ data, loading }: Reconstruction3DProps) {
-  if (loading) {
+  if (loading || !data) {
     return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        Reconstructing…
-      </div>
-    )
-  }
-
-  if (!data) {
-    return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        No reconstruction data
+      <div className="viz-secondary flex items-center justify-center px-6 text-center text-sm text-steel-400">
+        {loading ? 'Loading wall geometry…' : 'No layer data available for this build.'}
       </div>
     )
   }
@@ -56,8 +48,8 @@ export function Reconstruction3D({ data, loading }: Reconstruction3DProps) {
   const { meta } = data
 
   return (
-    <div className="flex h-full min-h-[180px] flex-col gap-2">
-      <div className="flex-1 overflow-hidden rounded-sm bg-steel-950/50">
+    <div className="flex flex-col gap-2">
+      <div className="viz-secondary overflow-hidden rounded-sm bg-steel-950/50">
         <Canvas
           camera={{ position: [3.2, 2.4, 3.2], fov: 40 }}
           dpr={[1, 1.5]}
@@ -74,11 +66,19 @@ export function Reconstruction3D({ data, loading }: Reconstruction3DProps) {
       </div>
       {meta && (
         <p
-          className="font-mono text-[11px] text-steel-500"
+          className="text-xs text-steel-400"
           title="Slab thickness is the equivalent bead width of each layer's measured melt-pool area — a single-track estimate, not a measured wall thickness"
         >
-          {meta.layers} layers · {meta.lengthMm} × {meta.heightMm} mm · wall{' '}
-          {meta.minThicknessMm}–{meta.maxThicknessMm} mm
+          Estimated from layer means ·{' '}
+          <span className="font-mono text-steel-200">{meta.layers}</span> layers ·{' '}
+          <span className="font-mono text-steel-200">
+            {meta.lengthMm} × {meta.heightMm} mm
+          </span>{' '}
+          · est. bead width{' '}
+          <span className="font-mono text-steel-200">
+            {meta.minThicknessMm.toFixed(1)}–{meta.maxThicknessMm.toFixed(1)} mm
+          </span>{' '}
+          (from melt-pool area)
           {meta.thicknessExaggeration !== 1 && ` · thickness ×${meta.thicknessExaggeration}`}
         </p>
       )}

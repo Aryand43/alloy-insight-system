@@ -7,11 +7,16 @@ interface RawImagesPanelProps {
   loading?: boolean
 }
 
-function caption(frame: Frame): string {
+function describe(frame: Frame): string {
   if (frame.zMm !== undefined) return `${frame.label} · z ${frame.zMm.toFixed(2)} mm`
   return `${frame.label} · ${frame.timestampMs} ms`
 }
 
+/**
+ * Process Insight's left panel: one chart per layer. Builds with histogram
+ * images show the measured distribution; the rest show a chart drawn from the
+ * per-layer means, and say so.
+ */
 export function RawImagesPanel({
   frames,
   selectedId,
@@ -20,39 +25,31 @@ export function RawImagesPanel({
 }: RawImagesPanelProps) {
   const selected = frames.find((f) => f.id === selectedId) ?? frames[0]
 
-  if (loading) {
+  if (loading || !frames.length) {
     return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        Loading frames…
-      </div>
-    )
-  }
-
-  if (!frames.length) {
-    return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        No raw images available
+      <div className="viz-primary flex items-center justify-center px-6 text-center text-sm text-steel-400">
+        {loading ? 'Loading layer charts…' : 'No layer charts available for this build.'}
       </div>
     )
   }
 
   return (
-    <div className="flex h-full min-h-[180px] flex-col gap-3">
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded-sm bg-steel-950/50">
+    <div className="flex flex-col gap-3">
+      <div className="viz-primary relative overflow-hidden rounded-sm bg-steel-950/50">
         {selected && (
           <img
             src={selected.imageUrl}
-            alt={selected.label}
-            className="max-h-44 w-auto object-contain"
+            alt={describe(selected)}
+            className="absolute inset-0 h-full w-full object-contain"
             decoding="async"
           />
         )}
         {selected?.measured === false && (
           <span
-            className="absolute right-1.5 top-1.5 rounded-sm border border-steel-600/50 bg-steel-950/80 px-1.5 py-0.5 text-[10px] text-steel-400"
-            title="This build has no KIV histogram images — the chart is generated from the per-layer means in the spreadsheet"
+            className="absolute right-2 top-2 rounded-sm border border-steel-600/50 bg-steel-950/85 px-2 py-0.5 text-xs text-steel-300"
+            title="No histogram images exist for this build — this chart is drawn from the per-layer mean temperatures"
           >
-            generated
+            Chart from layer means
           </span>
         )}
       </div>
@@ -64,7 +61,9 @@ export function RawImagesPanel({
               key={frame.id}
               type="button"
               onClick={() => onSelect(frame.id)}
-              title={caption(frame)}
+              title={describe(frame)}
+              aria-label={`Show ${frame.label}`}
+              aria-pressed={active}
               className={[
                 'shrink-0 overflow-hidden rounded-sm border transition-colors',
                 active
@@ -78,7 +77,7 @@ export function RawImagesPanel({
               */}
               <img
                 src={frame.thumbnailUrl ?? frame.imageUrl}
-                alt={frame.label}
+                alt=""
                 className="h-12 w-12 object-cover"
                 loading="lazy"
                 decoding="async"
@@ -88,7 +87,16 @@ export function RawImagesPanel({
         })}
       </div>
       {selected && (
-        <p className="font-mono text-[11px] text-steel-500">{caption(selected)}</p>
+        <p className="text-xs text-steel-400">
+          {selected.label}
+          {selected.zMm !== undefined && (
+            <>
+              {' '}· z <span className="font-mono text-steel-200">{selected.zMm.toFixed(2)} mm</span>
+            </>
+          )}
+          {selected.measured === true && ' · measured histogram'}
+          {selected.measured === false && ' · from layer means'}
+        </p>
       )}
     </div>
   )

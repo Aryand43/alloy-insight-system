@@ -15,6 +15,9 @@ export const PROCESS_TYPES: { id: ProcessType; label: string }[] = [
   { id: 'laser_cladding', label: 'Laser cladding' },
 ]
 
+/** Materials with coupon data behind them — every build in the corpus is 316L. */
+export const MATERIALS_WITH_DATA: ReadonlySet<string> = new Set(['316l-ss'])
+
 export function getMaterialById(id: string): MaterialOption | undefined {
   return MATERIALS.find((m) => m.id === id)
 }

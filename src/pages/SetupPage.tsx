@@ -16,8 +16,7 @@ export function SetupPage() {
             Process Insight
           </h1>
           <p className="max-w-xl text-base text-steel-400 leading-relaxed">
-            Configure material, process, and melt parameters for additive
-            manufacturing analysis.
+            Select a coupon build, then choose how to analyse it.
           </p>
         </div>
 

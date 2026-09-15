@@ -131,25 +131,27 @@ export function ThermalSurface3D({
 }: ThermalSurface3DProps) {
   if (error) {
     return (
-      <div className="flex h-full min-h-[180px] items-center justify-center px-4 text-center text-xs text-signal-red">
+      <div className="viz-secondary flex items-center justify-center px-6 text-center text-sm text-signal-red-text">
         {error}
       </div>
     )
   }
   if (!field || !calibration) {
     return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        {loading ? 'Loading thermal field…' : 'No thermal field'}
+      <div className="viz-secondary flex items-center justify-center px-6 text-center text-sm text-steel-400">
+        {loading ? 'Loading temperature data…' : 'No temperature data for this frame.'}
       </div>
     )
   }
 
-  const widthMm = (field.width * PIXEL_PITCH_UM) / 1000
-  const heightMm = (field.height * PIXEL_PITCH_UM) / 1000
+  // The field is decimated for rendering, so undo the stride to report the
+  // camera's true field of view.
+  const widthMm = (field.width * field.stride * PIXEL_PITCH_UM) / 1000
+  const heightMm = (field.height * field.stride * PIXEL_PITCH_UM) / 1000
 
   return (
-    <div className="flex h-full min-h-[180px] flex-col gap-2">
-      <div className="flex-1 overflow-hidden rounded-sm bg-steel-950/50">
+    <div className="flex flex-col gap-2">
+      <div className="viz-secondary overflow-hidden rounded-sm bg-steel-950/50">
         <Canvas
           camera={{ position: [2.8, 2.2, 3.0], fov: 40 }}
           dpr={[1, 1.5]}
@@ -172,9 +174,13 @@ export function ThermalSurface3D({
         </Canvas>
       </div>
       <ThermalColorBar meltThresholdC={meltThresholdC} />
-      <p className="font-mono text-[11px] text-steel-500">
-        {field.width} × {field.height} px · {widthMm.toFixed(1)} ×{' '}
-        {heightMm.toFixed(1)} mm at {PIXEL_PITCH_UM} µm/px · height ∝ °C
+      <p className="text-xs text-steel-400">
+        From raw camera frame ·{' '}
+        <span className="font-mono text-steel-200">
+          {widthMm.toFixed(1)} × {heightMm.toFixed(1)} mm
+        </span>{' '}
+        field of view · ≈<span className="font-mono text-steel-200">{Math.round(PIXEL_PITCH_UM)}</span>{' '}
+        µm/px · height and colour = temperature
       </p>
     </div>
   )

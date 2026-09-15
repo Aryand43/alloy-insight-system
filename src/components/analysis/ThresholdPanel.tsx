@@ -1,53 +1,80 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { ThresholdOverlay } from '../../domain/types'
 
 interface ThresholdPanelProps {
   overlay: ThresholdOverlay | null
   loading?: boolean
+  error?: string | null
 }
 
 type View = 'temp' | 'size'
 
-export function ThresholdPanel({ overlay, loading }: ThresholdPanelProps) {
-  const [view, setView] = useState<View>('temp')
+const VIEW_LABEL: Record<View, string> = {
+  temp: 'Temperature',
+  size: 'Melt-pool size',
+}
 
-  if (loading) {
-    return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        Computing thresholds…
-      </div>
-    )
-  }
+function PanelState({ children, error }: { children: ReactNode; error?: boolean }) {
+  return (
+    <div
+      className={[
+        'viz-primary flex items-center justify-center px-6 text-center text-sm',
+        error ? 'text-signal-red-text' : 'text-steel-400',
+      ].join(' ')}
+    >
+      {children}
+    </div>
+  )
+}
 
-  if (!overlay) {
-    return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        Select a frame to view thresholded data
-      </div>
-    )
-  }
+function Drift({ pct }: { pct?: number }) {
+  if (pct === undefined) return null
+  return (
+    <span className="font-mono text-steel-300">
+      {' '}({pct >= 0 ? '+' : ''}{pct.toFixed(1)}%)
+    </span>
+  )
+}
+
+/**
+ * Process Insight's right panel. With histogram images it shows the measured
+ * distribution for the layer; otherwise it draws an ESTIMATED melt-pool shape —
+ * the ellipse area comes from the layer's mean melt-pool area and the
+ * elongation is assumed. That is not image segmentation, and the panel says so.
+ */
+export function ThresholdPanel({ overlay, loading, error }: ThresholdPanelProps) {
+  // Open on size: on builds with histogram images the temperature histogram is
+  // already in the left panel, so this avoids showing the same image twice.
+  const [view, setView] = useState<View>('size')
+
+  if (loading) return <PanelState>Loading layer data…</PanelState>
+  if (error) return <PanelState error>{error}</PanelState>
+  if (!overlay) return <PanelState>Select a layer to view its deviation.</PanelState>
 
   const { width, height, contours, redFraction, blueFraction } = overlay
-  const histogram = view === 'temp' ? overlay.imageUrl : overlay.sizeImageUrl
   const hasBoth = Boolean(overlay.imageUrl && overlay.sizeImageUrl)
+  const image =
+    view === 'size'
+      ? (overlay.sizeImageUrl ?? overlay.imageUrl)
+      : (overlay.imageUrl ?? overlay.sizeImageUrl)
 
   return (
-    <div className="flex h-full min-h-[180px] flex-col gap-2">
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded-sm bg-steel-950/60">
-        {histogram ? (
-          /* The measured per-layer distribution, when the build has KIV images. */
+    <div className="flex flex-col gap-2">
+      <div className="viz-primary relative overflow-hidden rounded-sm bg-steel-950/60">
+        {image ? (
           <img
-            src={histogram}
-            alt={`Layer ${overlay.layer ?? ''} ${view} distribution`}
-            className="max-h-48 w-auto object-contain"
+            src={image}
+            alt={`Layer ${overlay.layer ?? ''} ${VIEW_LABEL[view].toLowerCase()} histogram`}
+            className="absolute inset-0 h-full w-full object-contain"
             decoding="async"
           />
         ) : (
           <svg
             viewBox={`0 0 ${width} ${height}`}
-            className="h-full max-h-48 w-full"
+            preserveAspectRatio="xMidYMid meet"
+            className="absolute inset-0 h-full w-full"
             role="img"
-            aria-label="Measured melt-pool area against the build's steady-state reference"
+            aria-label="Estimated melt-pool shape for this layer, against the build median"
           >
             <rect width={width} height={height} fill="#0d1117" />
             <defs>
@@ -58,6 +85,7 @@ export function ThresholdPanel({ overlay, loading }: ThresholdPanelProps) {
             </defs>
             <rect width={width} height={height} fill="url(#field)" />
 
+            {/* Dashed, so the reference reads without relying on colour. */}
             {contours
               .filter((c) => c.channel === 'blue')
               .map((c) => (
@@ -69,7 +97,8 @@ export function ThresholdPanel({ overlay, loading }: ThresholdPanelProps) {
                   ry={c.ry}
                   fill="rgba(61, 122, 181, 0.2)"
                   stroke="#3d7ab5"
-                  strokeWidth={1.5}
+                  strokeWidth={2}
+                  strokeDasharray="7 5"
                   opacity={c.opacity + 0.3}
                 />
               ))}
@@ -88,21 +117,11 @@ export function ThresholdPanel({ overlay, loading }: ThresholdPanelProps) {
                   opacity={Math.min(1, c.opacity + 0.5)}
                 />
               ))}
-
-            <line
-              x1={40}
-              y1={height / 2}
-              x2={width - 40}
-              y2={height / 2}
-              stroke="#4a5d72"
-              strokeWidth={1}
-              strokeDasharray="4 4"
-            />
           </svg>
         )}
 
         {hasBoth && (
-          <div className="absolute right-1.5 top-1.5 flex gap-1">
+          <div className="absolute right-2 top-2 flex gap-1">
             {(['temp', 'size'] as const).map((v) => (
               <button
                 key={v}
@@ -110,46 +129,66 @@ export function ThresholdPanel({ overlay, loading }: ThresholdPanelProps) {
                 onClick={() => setView(v)}
                 aria-pressed={view === v}
                 className={[
-                  'rounded-sm border px-1.5 py-0.5 text-[10px] transition-colors',
+                  'rounded-sm border px-2 py-0.5 text-xs transition-colors',
                   view === v
                     ? 'border-signal-yellow/50 bg-steel-800 text-steel-100'
-                    : 'border-steel-700/50 bg-steel-950/70 text-steel-400 hover:text-steel-200',
+                    : 'border-steel-700/50 bg-steel-950/80 text-steel-300 hover:text-steel-100',
                 ].join(' ')}
               >
-                {v === 'temp' ? 'temp' : 'size'}
+                {VIEW_LABEL[v]}
               </button>
             ))}
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px]">
-        <span
-          className="inline-flex items-center gap-1.5 text-steel-300"
-          title="How far this layer runs hot, as a fraction of the alert threshold"
-        >
-          <span className="h-2 w-2 rounded-full bg-signal-red" />
-          Hot {(redFraction * 100).toFixed(0)}%
+      {image ? (
+        <p className="text-xs text-steel-400">
+          Measured distribution for this layer (histogram image).
+        </p>
+      ) : (
+        <>
+          <p className="text-xs text-steel-400">
+            Estimated shape — sized from this layer’s mean melt-pool area;
+            elongation assumed. Not image segmentation.
+          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-300">
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="inline-block w-4 border-t-2 border-[#ff5c5c]" />
+              This layer
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="inline-block w-4 border-t-2 border-dashed border-signal-blue"
+              />
+              Build median
+            </span>
+          </div>
+        </>
+      )}
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-300">
+        <span title="How far this layer’s mean temperature sits above the build median, as a share of the alert band">
+          ▲ Above median{' '}
+          <span className="font-mono text-steel-200">{(redFraction * 100).toFixed(0)}%</span>{' '}
+          <span className="text-steel-400">of alert band</span>
         </span>
-        <span
-          className="inline-flex items-center gap-1.5 text-steel-300"
-          title="How far this layer runs cold, as a fraction of the alert threshold"
-        >
-          <span className="h-2 w-2 rounded-full bg-signal-blue" />
-          Cold {(blueFraction * 100).toFixed(0)}%
+        <span title="How far this layer’s mean temperature sits below the build median, as a share of the alert band">
+          ▼ Below median{' '}
+          <span className="font-mono text-steel-200">{(blueFraction * 100).toFixed(0)}%</span>{' '}
+          <span className="text-steel-400">of alert band</span>
         </span>
         {overlay.meanTempC !== undefined && (
-          <span className="text-steel-500">
-            {overlay.meanTempC.toFixed(0)} °C
-            {overlay.tempDriftPct !== undefined &&
-              ` (${overlay.tempDriftPct >= 0 ? '+' : ''}${overlay.tempDriftPct.toFixed(1)}%)`}
+          <span className="text-steel-400">
+            Mean <span className="font-mono text-steel-200">{overlay.meanTempC.toFixed(0)} °C</span>
+            <Drift pct={overlay.tempDriftPct} />
           </span>
         )}
         {overlay.meanSizeMm2 !== undefined && (
-          <span className="text-steel-500">
-            {overlay.meanSizeMm2.toFixed(2)} mm²
-            {overlay.sizeDriftPct !== undefined &&
-              ` (${overlay.sizeDriftPct >= 0 ? '+' : ''}${overlay.sizeDriftPct.toFixed(1)}%)`}
+          <span className="text-steel-400">
+            Area <span className="font-mono text-steel-200">{overlay.meanSizeMm2.toFixed(2)} mm²</span>
+            <Drift pct={overlay.sizeDriftPct} />
           </span>
         )}
       </div>

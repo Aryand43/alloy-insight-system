@@ -49,7 +49,7 @@ export function AppShell({ children, compact = false, trailing }: AppShellProps)
           {trailing}
         </header>
         {demoNote && (
-          <div className="border-b border-signal-yellow/20 bg-signal-yellow/5 px-4 py-1.5 text-center font-mono text-[11px] text-signal-yellow/90">
+          <div className="border-b border-steel-700/40 bg-steel-900/70 px-4 py-2 text-center text-xs text-steel-300">
             {demoNote}
           </div>
         )}

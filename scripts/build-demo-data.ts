@@ -124,7 +124,7 @@ async function main(): Promise<void> {
   )
 
   const buildCount = (await getCatalog()).length
-  const note = `Demo subset — thermal frames for ${THERMAL_BUILD} only (layers ${LAYERS.join(', ')}; every ${ordinal(FRAME_STEP)} frame). Process Insight covers all ${buildCount} builds.`
+  const note = `Demo dataset: thermal frames for build ${THERMAL_BUILD} (layers ${LAYERS.join(', ')}; every ${ordinal(FRAME_STEP)} frame). All ${buildCount} builds are available in Process Insight.`
   const env = await fs.readFile(ENV_DEMO, 'utf8')
   const line = `VITE_DEMO_NOTE="${note}"`
   await fs.writeFile(

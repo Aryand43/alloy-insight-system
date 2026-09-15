@@ -4,6 +4,8 @@ import { mockGetCalibration, mockGetThermalField } from './mock/thermal'
 export interface ThermalField {
   width: number
   height: number
+  /** Source pixels per returned sample along each axis. */
+  stride: number
   /** Raw 12-bit camera counts, row-major. Convert with the calibration LUT. */
   counts: Uint16Array
 }
@@ -29,6 +31,7 @@ export async function getThermalField(
   )
   const width = Number(res.headers.get('X-Frame-Width'))
   const height = Number(res.headers.get('X-Frame-Height'))
+  const returnedStride = Number(res.headers.get('X-Frame-Stride')) || stride
   const buf = await res.arrayBuffer()
 
   if (!width || !height || buf.byteLength !== width * height * 2) {
@@ -36,7 +39,7 @@ export async function getThermalField(
       `Malformed thermal field: ${width}x${height} but ${buf.byteLength} bytes`,
     )
   }
-  return { width, height, counts: new Uint16Array(buf) }
+  return { width, height, stride: returnedStride, counts: new Uint16Array(buf) }
 }
 
 interface CalibrationResponse {

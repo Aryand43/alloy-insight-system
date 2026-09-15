@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import path from 'node:path'
 
 export interface ThermalFrame {
   width: number
@@ -8,12 +9,16 @@ export interface ThermalFrame {
 }
 
 export class CorruptFrameError extends Error {
+  /** Diagnostic detail for server logs — never sent to the browser. */
+  readonly detail: string
+
   constructor(
     public file: string,
     reason: string,
   ) {
-    super(`Corrupt thermal frame ${file}: ${reason}`)
+    super('This frame is unreadable in the source data. Skip to the next frame.')
     this.name = 'CorruptFrameError'
+    this.detail = `${path.basename(file)}: ${reason}`
   }
 }
 

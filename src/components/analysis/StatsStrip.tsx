@@ -1,15 +1,31 @@
-import type { ThresholdStats } from '../../domain/types'
+import type { AlertLevel, ThresholdStats } from '../../domain/types'
 
 interface StatsStripProps {
   stats: ThresholdStats | null
   loading?: boolean
 }
 
+const LEVEL_LABEL: Record<AlertLevel, string> = {
+  stable: 'Stable',
+  transition: 'Transition',
+  alert: 'Alert',
+}
+
+const LEVEL_TEXT: Record<AlertLevel, string> = {
+  stable: 'text-signal-green',
+  transition: 'text-signal-yellow',
+  alert: 'text-signal-red-text',
+}
+
+/**
+ * Layer temperature stability across the build. Always derived from the
+ * per-layer mean temperatures — in both modes — so it says so.
+ */
 export function StatsStrip({ stats, loading }: StatsStripProps) {
   if (loading || !stats) {
     return (
-      <div className="panel-surface rounded-sm px-4 py-3 text-sm text-steel-500">
-        {loading ? 'Loading statistics…' : 'No statistics'}
+      <div className="panel-surface rounded-sm px-4 py-3 text-sm text-steel-400">
+        {loading ? 'Loading stability summary…' : 'No layer statistics available for this build.'}
       </div>
     )
   }
@@ -17,46 +33,41 @@ export function StatsStrip({ stats, loading }: StatsStripProps) {
   const bins = [
     {
       key: 'stable',
-      label: `Stable < ${stats.stableThreshold}%`,
+      label: `Stable (< ${stats.stableThreshold}% from build median)`,
       pct: stats.stablePct,
       bar: 'bg-signal-green',
     },
     {
       key: 'transition',
-      label: `Transition ${stats.stableThreshold}–${stats.transitionThreshold}%`,
+      label: `Transition (${stats.stableThreshold}–${stats.transitionThreshold}%)`,
       pct: stats.transitionPct,
       bar: 'bg-signal-yellow',
     },
     {
       key: 'alert',
-      label: `Alert ≥ ${stats.transitionThreshold}%`,
+      label: `Alert (≥ ${stats.transitionThreshold}%)`,
       pct: stats.alertPct,
       bar: 'bg-signal-red',
     },
   ] as const
 
-  const levelLabel =
-    stats.level === 'stable'
-      ? 'Stable'
-      : stats.level === 'transition'
-        ? 'Transition (yellow)'
-        : 'Alert (red)'
-
-  const levelColor =
-    stats.level === 'stable'
-      ? 'text-signal-green'
-      : stats.level === 'transition'
-        ? 'text-signal-yellow'
-        : 'text-signal-red'
-
   return (
     <div className="panel-surface rounded-sm px-4 py-3">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-steel-400">
-          Statistics
-        </h2>
-        <p className={`font-mono text-xs ${levelColor}`}>
-          Status · {levelLabel}
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-steel-400">
+            Layer Temperature Stability
+          </h2>
+          <p className="text-xs text-steel-400">
+            From per-layer mean temperatures
+            {stats.layerCount ? ` across ${stats.layerCount} layers` : ''}
+          </p>
+        </div>
+        <p className="text-sm text-steel-300">
+          Overall:{' '}
+          <span className={`font-medium ${LEVEL_TEXT[stats.level]}`}>
+            {LEVEL_LABEL[stats.level]}
+          </span>
         </p>
       </div>
 
@@ -73,9 +84,9 @@ export function StatsStrip({ stats, loading }: StatsStripProps) {
 
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         {bins.map((b) => (
-          <div key={b.key} className="flex items-center gap-2 text-xs text-steel-300">
-            <span className={`h-2 w-2 shrink-0 rounded-full ${b.bar}`} />
-            <span className="text-steel-500">{b.label}</span>
+          <div key={b.key} className="flex items-center gap-2 text-xs">
+            <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${b.bar}`} />
+            <span className="text-steel-400">{b.label}</span>
             <span className="ml-auto font-mono text-steel-200">{b.pct}%</span>
           </div>
         ))}

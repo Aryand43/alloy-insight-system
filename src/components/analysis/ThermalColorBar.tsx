@@ -43,7 +43,7 @@ export function ThermalColorBar({
         <div
           className="absolute top-[-2px] bottom-[-2px] w-px bg-steel-50"
           style={{ left: `${pct(meltThresholdC)}%` }}
-          title={`${meltThresholdC.toFixed(0)} °C — melt threshold, from the machine header`}
+          title={`${meltThresholdC.toFixed(0)} °C — melt threshold, from the machine log`}
         />
         {transitionC !== undefined && (
           <div
@@ -57,13 +57,15 @@ export function ThermalColorBar({
           />
         )}
       </div>
-      <div className="flex justify-between font-mono text-[10px] text-steel-500">
-        <span>{min.toFixed(0)} °C</span>
-        <span className="text-steel-400">
-          melt {meltThresholdC.toFixed(0)} °C
+      <div className="flex justify-between gap-2 text-xs text-steel-400">
+        <span className="font-mono">{min.toFixed(0)} °C</span>
+        <span>
+          Melt threshold{' '}
+          <span className="font-mono text-steel-200">{meltThresholdC.toFixed(0)} °C</span>
         </span>
-        <span title="8% of pixels saturate at the sensor ceiling">
-          ≥{max.toFixed(0)} °C
+        <span title="Pixels at this value have saturated the camera">
+          <span className="font-mono">≥ {max.toFixed(0)} °C</span>{' '}
+          (sensor limit)
         </span>
       </div>
     </div>

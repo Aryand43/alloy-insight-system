@@ -8,7 +8,7 @@ import {
   getThreeColor,
   getThreshold,
 } from '../api/sessions'
-import { getProcessLabel } from '../domain/materials'
+import { userMessage } from '../api/errors'
 import type {
   AnalysisSession,
   Frame,
@@ -71,6 +71,7 @@ export function AnalysisPage() {
   const [loading3d, setLoading3d] = useState(true)
   const [loadingStats, setLoadingStats] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [overlayError, setOverlayError] = useState<string | null>(null)
 
   const [thermalIndex, setThermalIndex] = useState<ThermalLayerIndex | null>(null)
   const [frameWindow, setFrameWindow] = useState<ThermalFrameWindow | null>(null)
@@ -115,9 +116,9 @@ export function AnalysisPage() {
         setThreeColor(vol)
         setStats(st)
         if (fr[0]) setSelectedFrameId(fr[0].id)
-      } catch (err) {
+      } catch {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load session')
+          setError('This analysis could not be loaded. It may have expired — start again from setup.')
         }
       } finally {
         if (!cancelled) {
@@ -141,11 +142,16 @@ export function AnalysisPage() {
 
     async function loadOverlay() {
       setLoadingOverlay(true)
+      setOverlayError(null)
       try {
         const th = await getThreshold(sessionId, selectedFrameId!)
         if (!cancelled) setOverlay(th)
-      } catch {
-        if (!cancelled) setOverlay(null)
+      } catch (err) {
+        if (!cancelled) {
+          setOverlay(null)
+          // Distinct from the empty state — a failure must not read as "select a layer".
+          setOverlayError(userMessage(err, 'Couldn’t load this layer — try another layer.'))
+        }
       } finally {
         if (!cancelled) setLoadingOverlay(false)
       }
@@ -171,13 +177,18 @@ export function AnalysisPage() {
         setThermalIndex(index)
         if (index.layers.length) {
           const known = index.layers.some((l) => l.layer === thermalLayer)
-          if (!known) setThermalLayer(index.layers[0].layer)
+          if (!known) {
+            // Open mid-build, mid-layer. Layer 1 is the cold start, where the
+            // camera and machine log agree least, and a layer's first frame
+            // can be blank as the laser starts the track.
+            const opening = index.layers[Math.floor(index.layers.length / 2)]
+            setThermalLayer(opening.layer)
+            setThermalPos(Math.floor(opening.frameCount / 2))
+          }
         }
       } catch (err) {
         if (!cancelled) {
-          setThermalError(
-            err instanceof Error ? err.message : 'Could not index thermal frames',
-          )
+          setThermalError(userMessage(err, 'Couldn’t prepare thermal frames for this build.'))
         }
       } finally {
         if (!cancelled) setLoadingThermal(false)
@@ -190,7 +201,7 @@ export function AnalysisPage() {
     }
     // thermalLayer is intentionally excluded: this seeds the layer once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, mode, setThermalLayer])
+  }, [sessionId, mode, setThermalLayer, setThermalPos])
 
   // Frame window around the cursor — never all ~380 at once.
   const windowStart = Math.floor(thermalPos / WINDOW) * WINDOW
@@ -204,9 +215,7 @@ export function AnalysisPage() {
         if (!cancelled) setFrameWindow(w)
       } catch (err) {
         if (!cancelled) {
-          setThermalError(
-            err instanceof Error ? err.message : 'Could not load melt-pool frames',
-          )
+          setThermalError(userMessage(err, 'Couldn’t load melt-pool frames for this layer.'))
         }
       }
     }
@@ -234,7 +243,7 @@ export function AnalysisPage() {
           setFrameStats(null)
           // A handful of frames in the corpus are corrupt; say so rather than
           // showing a broken image.
-          setThermalError(err instanceof Error ? err.message : null)
+          setThermalError(userMessage(err, 'Couldn’t read this frame. Try the next frame.'))
         }
       }
     }
@@ -255,9 +264,7 @@ export function AnalysisPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setFieldError(
-            err instanceof Error ? err.message : 'Could not load calibration',
-          )
+          setFieldError(userMessage(err, 'Couldn’t load the camera calibration.'))
         }
       })
     return () => {
@@ -279,7 +286,7 @@ export function AnalysisPage() {
       .catch((err) => {
         if (controller.signal.aborted) return
         setField(null)
-        setFieldError(err instanceof Error ? err.message : 'Could not load field')
+        setFieldError(userMessage(err, 'Couldn’t load temperature data for this frame.'))
       })
 
     return () => controller.abort()
@@ -318,10 +325,24 @@ export function AnalysisPage() {
 
   const activeLayer = thermalLayers.find((l) => l.layer === thermalLayer) ?? null
 
+  // e.g. "10-pass · R5 · 56 layers × 0.9 mm", from the decoded build id.
+  const run = session?.config.sampleId.match(/r(\d+)$/i)?.[1]
+  const buildShape = session?.config.passes
+    ? [
+        `${session.config.passes}-pass`,
+        run ? `R${run}` : null,
+        session.config.layers && session.config.layerHeightMm
+          ? `${session.config.layers} layers × ${session.config.layerHeightMm.toFixed(1)} mm`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : null
+
   const trailing = (
     <Link to="/">
       <Button variant="ghost" className="text-xs">
-        Edit setup
+        Change build
       </Button>
     </Link>
   )
@@ -330,7 +351,7 @@ export function AnalysisPage() {
     return (
       <AppShell compact trailing={trailing}>
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6">
-          <p className="text-signal-red">{error}</p>
+          <p className="max-w-md text-center text-signal-red-text">{error}</p>
           <Link to="/">
             <Button variant="secondary">Back to setup</Button>
           </Link>
@@ -345,39 +366,36 @@ export function AnalysisPage() {
         {/* Config summary */}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-steel-700/30 pb-3 text-xs">
           {loadingSession || !session ? (
-            <span className="text-steel-500">Loading session…</span>
+            <span className="text-steel-400">Loading analysis…</span>
           ) : (
             <>
+              <span className="rounded-sm border border-steel-600/60 bg-steel-800/70 px-2 py-0.5 text-xs font-medium text-steel-50">
+                {mode === 'alloy' ? 'Alloy Insight' : 'Process Insight'}
+              </span>
               <SummaryItem
-                label="Mode"
-                value={mode === 'alloy' ? 'Alloy Insight' : 'Process Insight'}
+                label="Build"
+                value={session.config.sampleId}
+                mono
+                title={`Session ${session.id}`}
               />
               <SummaryItem label="Material" value={session.config.materialLabel} />
-              <SummaryItem
-                label="Process"
-                value={getProcessLabel(session.config.processType)}
-              />
-              <SummaryItem
-                label="Melt temp"
-                value={`${session.config.meltingTempC} °C`}
-                mono
-              />
-              <SummaryItem label="Data" value={session.config.dataSourceName} mono />
-              <SummaryItem
-                label="Config"
-                value={session.config.configName}
-                mono
-              />
-              <span className="ml-auto font-mono text-steel-600">
-                {session.id}
-              </span>
+              {buildShape && <span className="text-steel-300">{buildShape}</span>}
+              {mode === 'alloy' && thermalIndex && (
+                <SummaryItem
+                  label="Melt threshold"
+                  value={`${thermalIndex.meltThresholdC.toFixed(0)} °C`}
+                  mono
+                  note="(machine log)"
+                />
+              )}
             </>
           )}
         </div>
 
         {/* 2×2 viz grid */}
-        <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2 lg:grid-rows-2">
-          <Panel title="Thermal profile">
+        {/* Row heights come from the panels' viz-primary / viz-secondary sizes. */}
+        <div className="grid gap-3 lg:grid-cols-2">
+          <Panel title="Layer Temperature Profile">
             {mode === 'alloy' ? (
               <ThermalProfilePanel
                 layers={thermalLayers}
@@ -394,7 +412,7 @@ export function AnalysisPage() {
               />
             )}
           </Panel>
-          <Panel title={mode === 'alloy' ? 'Melt pool images' : 'Thresholded data'}>
+          <Panel title={mode === 'alloy' ? 'Melt Pool Images' : 'Layer Melt-Pool Deviation'}>
             {mode === 'alloy' ? (
               <MeltPoolImagesPanel
                 frames={frameWindow?.frames ?? []}
@@ -403,14 +421,15 @@ export function AnalysisPage() {
                 onSeek={seek}
                 stats={frameStats}
                 meltThresholdC={thermalIndex?.meltThresholdC ?? 1560}
+                tempMaxC={thermalIndex?.tempRangeC[1]}
                 loading={loadingThermal}
                 error={thermalError}
               />
             ) : (
-              <ThresholdPanel overlay={overlay} loading={loadingOverlay} />
+              <ThresholdPanel overlay={overlay} loading={loadingOverlay} error={overlayError} />
             )}
           </Panel>
-          <Panel title="3D reconstruction">
+          <Panel title={mode === 'alloy' ? 'Temperature Distribution' : 'Estimated Wall Geometry'}>
             {mode === 'alloy' ? (
               <ThermalSurface3D
                 field={field}
@@ -423,7 +442,7 @@ export function AnalysisPage() {
               <Reconstruction3D data={recon} loading={loading3d} />
             )}
           </Panel>
-          <Panel title="Three color 3D image">
+          <Panel title={mode === 'alloy' ? 'Thermal Zones' : 'Layer Stability Map'}>
             {mode === 'alloy' ? (
               <ThermalZones3D
                 field={field}
@@ -450,17 +469,20 @@ function SummaryItem({
   label,
   value,
   mono,
+  title,
+  note,
 }: {
   label: string
   value: string
   mono?: boolean
+  title?: string
+  note?: string
 }) {
   return (
-    <span className="inline-flex items-baseline gap-1.5">
-      <span className="uppercase tracking-[0.08em] text-steel-500">{label}</span>
-      <span className={mono ? 'font-mono text-steel-200' : 'text-steel-200'}>
-        {value}
-      </span>
+    <span className="inline-flex items-baseline gap-1.5" title={title}>
+      <span className="uppercase tracking-[0.08em] text-steel-400">{label}</span>
+      <span className={mono ? 'font-mono text-steel-100' : 'text-steel-100'}>{value}</span>
+      {note && <span className="text-steel-400">{note}</span>}
     </span>
   )
 }

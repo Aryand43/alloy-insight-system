@@ -95,18 +95,10 @@ export function ThreeColor3D({ data, loading }: ThreeColor3DProps) {
     return { byClass, dims }
   }, [data])
 
-  if (loading) {
+  if (loading || !data || !grouped) {
     return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        Classifying volume…
-      </div>
-    )
-  }
-
-  if (!data || !grouped) {
-    return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-sm text-steel-500">
-        No three-color volume
+      <div className="viz-secondary flex items-center justify-center px-6 text-center text-sm text-steel-400">
+        {loading ? 'Loading stability map…' : 'No layer data available for this build.'}
       </div>
     )
   }
@@ -116,8 +108,8 @@ export function ThreeColor3D({ data, loading }: ThreeColor3DProps) {
     Math.round(((data.counts?.[cls] ?? grouped.byClass.get(cls)?.length ?? 0) / total) * 100)
 
   return (
-    <div className="flex h-full min-h-[180px] flex-col gap-2">
-      <div className="relative flex-1 overflow-hidden rounded-sm bg-steel-950/50">
+    <div className="flex flex-col gap-2">
+      <div className="viz-secondary relative overflow-hidden rounded-sm bg-steel-950/50">
         <Canvas
           camera={{ position: [3.4, 2.6, 3.4], fov: 40 }}
           dpr={[1, 1.5]}
@@ -137,17 +129,23 @@ export function ThreeColor3D({ data, loading }: ThreeColor3DProps) {
           <OrbitControls enablePan={false} minDistance={2} maxDistance={9} />
         </Canvas>
       </div>
-      <div className="flex flex-wrap gap-3 font-mono text-[11px] text-steel-300">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-300">
         <span className="inline-flex items-center gap-1.5" title="Temperature and size both within their stable bands">
-          <span className="h-2 w-2 rounded-full bg-signal-green" /> Green {pct('green')}%
+          <span aria-hidden className="h-2 w-2 rounded-full bg-signal-green" /> Stable{' '}
+          <span className="font-mono text-steel-200">{pct('green')}%</span>
         </span>
         <span className="inline-flex items-center gap-1.5" title="Running hot or oversized">
-          <span className="h-2 w-2 rounded-full bg-signal-red" /> Red {pct('red')}%
+          <span aria-hidden className="h-2 w-2 rounded-full bg-signal-red" /> Hotter or larger{' '}
+          <span className="font-mono text-steel-200">{pct('red')}%</span>
         </span>
         <span className="inline-flex items-center gap-1.5" title="Running cold or undersized">
-          <span className="h-2 w-2 rounded-full bg-signal-blue" /> Blue {pct('blue')}%
+          <span aria-hidden className="h-2 w-2 rounded-full bg-signal-blue" /> Cooler or smaller{' '}
+          <span className="font-mono text-steel-200">{pct('blue')}%</span>
         </span>
       </div>
+      <p className="text-xs text-steel-400">
+        One row per layer · from layer mean temperature and melt-pool size
+      </p>
     </div>
   )
 }

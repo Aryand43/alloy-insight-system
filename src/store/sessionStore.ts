@@ -30,10 +30,11 @@ export interface SetupFormState {
 
 const initial = {
   materialId: defaultMaterial.id,
-  processType: 'laser_powder_bed_fusion' as ProcessType,
+  // Every coupon in the corpus was built by laser powder DED.
+  processType: 'laser_powder_ded' as ProcessType,
   meltingTempC: defaultMaterial.defaultMeltTempC,
   dataSourceName: '',
-  configName: 'default_preset.json',
+  configName: '',
   sampleId: '',
   passFilter: null as number | null,
   thermalOnly: false,
@@ -64,7 +65,8 @@ export const useSetupStore = create<SetupFormState>((set, get) => ({
       processType: s.processType,
       meltingTempC: s.meltingTempC,
       dataSourceName: s.dataSourceName || s.sampleId || 'demo_sequence.zip',
-      configName: s.configName || 'default_preset.json',
+      // Empty lets the server name it from the build, e.g. "10-pass · R5".
+      configName: s.configName,
       sampleId: s.sampleId,
       mode,
     }
