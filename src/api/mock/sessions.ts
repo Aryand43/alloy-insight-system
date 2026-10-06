@@ -37,6 +37,7 @@ const MOCK_CATALOG: BuildSummary[] = [
     hasRawFrames: false,
     hasThermal: false,
     quality: 'best',
+    geometryHeightDeviationMm: null,
   },
   {
     id: '60045010r2',
@@ -52,6 +53,7 @@ const MOCK_CATALOG: BuildSummary[] = [
     hasRawFrames: false,
     hasThermal: false,
     quality: 'worst',
+    geometryHeightDeviationMm: null,
   },
   {
     id: '60106308r3',
@@ -67,6 +69,7 @@ const MOCK_CATALOG: BuildSummary[] = [
     hasRawFrames: true,
     hasThermal: true,
     quality: null,
+    geometryHeightDeviationMm: null,
   },
 ]
 

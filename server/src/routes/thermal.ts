@@ -1,19 +1,30 @@
 import { Router } from 'express'
 import type {
+  LayerFrameAnomalies,
   ThermalFrameStats,
   ThermalFrameWindow,
   ThermalLayerIndex,
 } from '../../../src/domain/types.js'
 import { PUBLIC_BASE_URL } from '../config.js'
-import { calibration } from '../services/calibration.js'
+import { calibration, celsiusToCount } from '../services/calibration.js'
+import { layerFrameAnomalies } from '../services/anomaly.js'
+import { frameReference, layerFeatures } from '../services/anomalyFeatures.js'
 import { getFrameIndex, type IndexedFrame, type IndexedLayer } from '../services/frameIndex.js'
 import {
   loadFrame,
+  poolReference,
   renderIndexedFrame,
   statsForIndexedFrame,
+  type ThresholdChoice,
 } from '../services/thermal.js'
 import type { CatalogEntry } from '../services/catalog.js'
-import { HttpError, requireBuild, resolveSession, thresholdsFrom } from './helpers.js'
+import {
+  HttpError,
+  meltThresholdFrom,
+  requireBuild,
+  resolveSession,
+  thresholdsFrom,
+} from './helpers.js'
 import { CorruptFrameError } from '../parsers/frame.js'
 
 export const thermalRouter = Router()
@@ -30,9 +41,21 @@ function requireThermal(entry: CatalogEntry): void {
   }
 }
 
-function frameUrl(buildId: string, layer: number, pos: number, overlay: boolean): string {
+function frameUrl(
+  buildId: string,
+  layer: number,
+  pos: number,
+  overlay: boolean,
+  thresholdC: number | null,
+): string {
   const base = `${PUBLIC_BASE_URL}/builds/${encodeURIComponent(buildId)}/layers/${layer}/frames/${pos}/thermal.png`
-  return overlay ? `${base}?overlay=1` : base
+  const params = new URLSearchParams()
+  if (overlay) params.set('overlay', '1')
+  // Carried into the image URL so the contour is drawn at the same threshold
+  // the numbers beside it were measured at.
+  if (thresholdC !== null) params.set('thresholdC', String(thresholdC))
+  const query = params.toString()
+  return query ? `${base}?${query}` : base
 }
 
 function pickLayer(index: { byLayer: Map<number, IndexedLayer> }, raw: string): IndexedLayer {
@@ -51,6 +74,47 @@ function pickFrame(layer: IndexedLayer, raw: string): IndexedFrame {
     )
   }
   return layer.frames[n]
+}
+
+/**
+ * Which threshold to segment at.
+ *
+ * The machine's own threshold is per-row (the controller logs it with every
+ * sample), so it is read off the matched frame. A threshold the operator set
+ * replaces it for every frame, and the °C value is converted through the same
+ * calibration the camera counts are read with.
+ */
+function chooseThreshold(
+  userThresholdC: number | null,
+  machineThresholdC: number,
+  frame: IndexedFrame,
+): ThresholdChoice {
+  if (userThresholdC === null) {
+    return {
+      count: frame.thresholdCount,
+      celsius: machineThresholdC,
+      source: 'machine',
+    }
+  }
+  return {
+    count: celsiusToCount(userThresholdC),
+    celsius: userThresholdC,
+    source: 'user',
+  }
+}
+
+/** Frames spread across the build, for the steady-state size reference. */
+function referenceSample(layers: IndexedLayer[], transition: number, count = 12): IndexedFrame[] {
+  const eligible = layers.filter((l) => l.layer > transition)
+  if (!eligible.length) return []
+  const out: IndexedFrame[] = []
+  const step = Math.max(1, Math.floor(eligible.length / count))
+  for (let i = 0; i < eligible.length && out.length < count; i += step) {
+    const layer = eligible[i]
+    const mid = layer.frames[Math.floor(layer.frames.length / 2)]
+    if (mid) out.push(mid)
+  }
+  return out
 }
 
 thermalRouter.get('/sessions/:id/thermal/layers', async (req, res) => {
@@ -97,6 +161,7 @@ thermalRouter.get('/sessions/:id/thermal/layers/:layer/frames', async (req, res)
   requireThermal(entry)
   const index = await getFrameIndex(entry)
   const layer = pickLayer(index, req.params.layer)
+  const userThresholdC = meltThresholdFrom(req)
 
   const rawOffset = Number(req.query.offset)
   const rawLimit = Number(req.query.limit)
@@ -120,8 +185,8 @@ thermalRouter.get('/sessions/:id/thermal/layers/:layer/frames', async (req, res)
       tMs: f.tMs,
       meltpoolSizePx: f.meltpoolSizePx,
       meltpoolTempC: f.meltpoolTempC,
-      imageUrl: frameUrl(entry.id, layer.layer, f.position, true),
-      plainUrl: frameUrl(entry.id, layer.layer, f.position, false),
+      imageUrl: frameUrl(entry.id, layer.layer, f.position, true, userThresholdC),
+      plainUrl: frameUrl(entry.id, layer.layer, f.position, false, userThresholdC),
     })),
   }
   res.json(body)
@@ -130,16 +195,28 @@ thermalRouter.get('/sessions/:id/thermal/layers/:layer/frames', async (req, res)
 thermalRouter.get(
   '/sessions/:id/thermal/layers/:layer/frames/:pos/stats',
   async (req, res) => {
-    const { entry } = await resolveSession(req.params.id, thresholdsFrom(req))
+    const { entry, series } = await resolveSession(req.params.id, thresholdsFrom(req))
     requireThermal(entry)
     const index = await getFrameIndex(entry)
     const layer = pickLayer(index, req.params.layer)
     const frame = pickFrame(layer, req.params.pos)
+    const threshold = chooseThreshold(
+      meltThresholdFrom(req),
+      index.meltThresholdC,
+      frame,
+    )
 
     try {
+      const { transition } = layerFeatures(series)
+      const reference = await poolReference(
+        entry.id,
+        threshold.count,
+        referenceSample(index.layers, transition),
+      )
       const body: ThermalFrameStats = await statsForIndexedFrame(
         frame,
-        index.meltThresholdC,
+        threshold,
+        reference,
       )
       res.json(body)
     } catch (err) {
@@ -149,6 +226,28 @@ thermalRouter.get(
       }
       throw err
     }
+  },
+)
+
+/**
+ * Where inside one layer the melt pool left the build's steady state.
+ *
+ * Alloy Insight's question: a layer can look fine on average while a stretch
+ * of it was wrong. Each frame is scored against the build's steady state and
+ * the flagged ones are returned with the machine coordinates they were
+ * captured at, so the deviation can be pointed to in XYZ.
+ */
+thermalRouter.get(
+  '/sessions/:id/thermal/layers/:layer/anomalies',
+  async (req, res) => {
+    const { entry, series } = await resolveSession(req.params.id, thresholdsFrom(req))
+    requireThermal(entry)
+    const index = await getFrameIndex(entry)
+    const layer = pickLayer(index, req.params.layer)
+    const { transition } = layerFeatures(series)
+    const reference = frameReference(index.layers, transition)
+    const body: LayerFrameAnomalies = layerFrameAnomalies(layer, reference)
+    res.json(body)
   },
 )
 
@@ -224,11 +323,17 @@ thermalRouter.get(
     const index = await getFrameIndex(entry)
     const layer = pickLayer(index, req.params.layer)
     const frame = pickFrame(layer, req.params.pos)
+    const threshold = chooseThreshold(
+      meltThresholdFrom(req),
+      index.meltThresholdC,
+      frame,
+    )
 
     try {
       const png = await renderIndexedFrame(frame, {
         overlay: req.query.overlay === '1',
         showRoi: req.query.roi === '1',
+        thresholdCount: threshold.count,
       })
       res.setHeader('Cache-Control', 'public, max-age=3600')
       res.type('image/png').send(png)

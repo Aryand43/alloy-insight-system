@@ -34,6 +34,11 @@ export interface SessionConfig {
   sampleId: string
   /** Optional so existing sessions and the mock adapter keep compiling. */
   mode?: AnalysisMode
+  /**
+   * Segmentation threshold the operator set, in °C. When absent the machine's
+   * own logged threshold is used instead.
+   */
+  thresholdC?: number
   /** Decoded from sampleId; echoed back by the server for display. */
   passes?: number
   layers?: number
@@ -182,6 +187,12 @@ export interface BuildSummary {
   hasThermal: boolean
   /** Verdict from COUPON QUALITY.xlsx, which ranks one best and one worst per pass group. */
   quality: 'best' | 'worst' | null
+  /**
+   * Mean deviation of the finished top face from nominal, in mm, from the GOM
+   * surface-comparison reports. Negative means the wall came out short.
+   * Ground truth measured off the machine — independent of anything thermal.
+   */
+  geometryHeightDeviationMm: number | null
 }
 
 /* ----------------------------------------------------- thermal (alloy) -- */
@@ -239,4 +250,150 @@ export interface ThermalFrameStats {
   loggedTempC: number
   thresholdCount: number
   thresholdC: number
+  /**
+   * `machine` means the threshold came from the run header, `user` that the
+   * operator set it in setup. Shown next to the number so a segmentation is
+   * never read as the machine's when it is not.
+   */
+  thresholdSource: 'machine' | 'user'
+  /** Caliper extents of the segmented pool along its own principal axes. */
+  dimensions: MeltPoolDimensions | null
+}
+
+/**
+ * Melt-pool extent, measured on the thresholded mask rather than inferred
+ * from its area: the mask's principal axes are found by eigen-decomposition
+ * of its pixel covariance, then the pool is measured end to end along each.
+ * `length` is the long axis (the direction of travel), `width` the short one.
+ */
+export interface MeltPoolDimensions {
+  lengthMm: number
+  widthMm: number
+  lengthPx: number
+  widthPx: number
+  /** Long-axis orientation in the image, degrees from the horizontal. */
+  angleDeg: number
+  /** length / width; 1 is round, higher is more elongated. */
+  aspect: number
+  /** Signed % difference from the build's steady-state pool, when known. */
+  lengthDeviationPct: number | null
+  widthDeviationPct: number | null
+}
+
+/* ----------------------------------------------------- anomaly detection -- */
+
+/**
+ * The ramp-up at the start of a build, where temperature is still climbing
+ * toward steady state. Deviation here is expected, so these layers are
+ * reported but never flagged as anomalies.
+ */
+export interface TransitionRegion {
+  /** Last layer of the ramp; layers 1..endLayer inclusive. */
+  endLayer: number
+  startTempC: number
+  endTempC: number
+  endZMm: number
+}
+
+export type AnomalySeverity = 'watch' | 'alert'
+
+export interface LayerAnomaly {
+  layer: number
+  zMm: number
+  /** Mahalanobis distance from the model's normal region. */
+  score: number
+  severity: AnomalySeverity
+  meanTempC: number
+  tempDriftPct: number
+  sizeDriftPct: number
+}
+
+/** A run of consecutive flagged layers, reported by where it began. */
+export interface AnomalyEvent {
+  onsetLayer: number
+  endLayer: number
+  onsetZMm: number
+  peakLayer: number
+  peakScore: number
+  severity: AnomalySeverity
+  /** One line fit for an alert banner. */
+  summary: string
+}
+
+export interface AnomalyModelInfo {
+  name: string
+  trainedOn: string
+  /** Honest statement of what validation showed, shown in the UI. */
+  validation: string
+  alertThreshold: number
+  watchThreshold: number
+}
+
+export interface AnomalyReport {
+  buildId: string
+  model: AnomalyModelInfo
+  transition: TransitionRegion
+  /** Layers in the build, and how many were eligible for scoring. */
+  layersAnalysed: number
+  layersScored: number
+  anomalies: LayerAnomaly[]
+  events: AnomalyEvent[]
+  flaggedPct: number
+  verdict: 'clean' | 'watch' | 'alert'
+}
+
+/** One deviating frame inside a layer, located in machine coordinates. */
+export interface FrameAnomaly {
+  position: number
+  tMs: number
+  score: number
+  severity: AnomalySeverity
+  xMm: number
+  yMm: number
+  zMm: number
+  sizeDriftPct: number
+  tempDriftPct: number
+}
+
+export interface LayerFrameAnomalies {
+  layer: number
+  zMm: number
+  frameCount: number
+  anomalies: FrameAnomaly[]
+  flaggedPct: number
+  /** Per-frame scores in frame order, for the scrubber and the 3D map. */
+  scores: number[]
+  alertThreshold: number
+  worst: FrameAnomaly | null
+  /**
+   * Measured caveat, carried to the UI: frame-level flags localise deviation
+   * within a layer but did not separate good from bad coupons.
+   */
+  note: string
+}
+
+/** Header strip shown once a build is loaded. */
+export interface BuildBrief {
+  buildId: string
+  machine: string
+  material: string
+  process: string
+  geometry: string
+  builtOn: string | null
+  layersAnalysed: number
+  /** Thermal frames matched to layers, 0 for spreadsheet-only builds. */
+  monitoringFrames: number
+  detectedAnomalies: number
+  verdict: AnomalyReport['verdict']
+  transitionEndLayer: number
+  keyParameters: { label: string; value: string }[]
+}
+
+/** Answer from the dataset query assistant. */
+export interface QueryAnswer {
+  question: string
+  answer: string
+  /** Which build data the answer was grounded in. */
+  contextBuilds: string[]
+  model: string
 }

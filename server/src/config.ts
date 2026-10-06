@@ -26,6 +26,9 @@ export const MEANSIZE_DIR = path.join(AVG_DIR, 'meansize')
 export const KIV_DIR = path.join(AVG_DIR, 'KIV')
 export const DMG_DIR = path.join(BACKEND_DATA_DIR, 'DMG MORI DATA')
 export const COUPON_QUALITY_XLSX = path.join(DMG_DIR, 'COUPON QUALITY.xlsx')
+/** GOM surface-comparison reports, one workbook per pass group. */
+export const GOM_DIR = path.join(BACKEND_DATA_DIR, 'GOM REPORT GEOMETRY COMPARISON')
+export const GOM_FILES = ['GOM6004.xlsx', '6007GOM.xlsx', '6010GOM.xlsx']
 
 /**
  * Classification thresholds, expressed as |percent drift| from the build's own
@@ -44,6 +47,16 @@ export const DEFAULT_TEMP_STABLE_PCT = 2
 export const DEFAULT_TEMP_TRANSITION_PCT = 5
 export const DEFAULT_SIZE_STABLE_PCT = 10
 export const DEFAULT_SIZE_TRANSITION_PCT = 30
+
+/**
+ * Camera ground sampling distance, in micrometres per pixel.
+ *
+ * Derived from the machine's own logs rather than a datasheet: the logged
+ * `meltpoolSize` in pixels against the melt-pool area the same rows imply
+ * gives 29.7 µm/px, so a 164 x 218 frame covers roughly 4.9 x 6.5 mm. Melt
+ * pool width and length are reported in mm through this number.
+ */
+export const PIXEL_PITCH_UM = 29.7
 
 /** Nominal coupon length in mm; encoded as the first two digits of every build id. */
 export const NOMINAL_LENGTH_MM = 60

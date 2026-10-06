@@ -1,4 +1,5 @@
 import type {
+  AnomalyReport,
   ClassifiedVoxel,
   ColorClass,
   MeshPayload,
@@ -124,25 +125,53 @@ export function buildReconstruction(
 
 /* ---------------------------------------------------------- three colour -- */
 
-const SEVERITY = { stable: 0, transition: 1, alert: 2 } as const
+/**
+ * Where each cell of the wall sits, per the anomaly model.
+ *
+ * - `green` — scored and within the build's steady state
+ * - `red`   — flagged by the model
+ * - `blue`  — inside the ramp-up transition region, so never scored
+ *
+ * This replaces the old hot/cold split. One colour per layer could only say
+ * that a layer deviated on average; what matters is whether the model flagged
+ * it, and for builds with frame data, which part of the pass it flagged.
+ */
+export function classifyLayer(layer: number, report: AnomalyReport): ColorClass {
+  if (layer <= report.transition.endLayer) return 'blue'
+  return report.anomalies.some((a) => a.layer === layer && a.severity === 'alert')
+    ? 'red'
+    : 'green'
+}
 
 /**
- * Green only when both temperature and size sit in their stable bands;
- * otherwise the dominant deviation decides, red for hot/oversized and blue for
- * cold/undersized.
+ * Column indices of a layer that deviated, from the machine x of each flagged
+ * frame.
+ *
+ * `x` runs the length of the coupon, so a frame's x maps onto a column of the
+ * wall: a layer whose deviation was confined to one end shows red only at that
+ * end instead of colouring the whole row.
  */
-export function classifyLayer(point: LayerPoint): ColorClass {
-  const tempSeverity = SEVERITY[point.level]
-  const sizeSeverity = SEVERITY[point.sizeLevel]
-  if (tempSeverity === 0 && sizeSeverity === 0) return 'green'
-  const useTemp = tempSeverity >= sizeSeverity
-  const drift = useTemp ? point.tempDriftPct : point.sizeDriftPct
-  return drift >= 0 ? 'red' : 'blue'
+export function anomalyColumns(
+  xs: number[],
+  lengthMm: number,
+  columns = VOXEL_COLUMNS,
+): Set<number> {
+  const out = new Set<number>()
+  for (const x of xs) {
+    // Machine x is centred on the coupon, so -length/2 is the first column.
+    const t = (x + lengthMm / 2) / (lengthMm || 1)
+    const index = Math.round(t * (columns - 1))
+    if (index >= 0 && index < columns) out.add(index)
+  }
+  return out
 }
 
 export function buildThreeColor(
   entry: CatalogEntry,
   series: LayerSeries,
+  report: AnomalyReport,
+  /** Per-layer machine-x positions of flagged frames, for thermal builds. */
+  flaggedFrameX?: Map<number, number[]>,
 ): ThreeColorPayload {
   const points = series.points
   const heightMm = points.length * entry.layerHeightMm
@@ -157,9 +186,17 @@ export function buildThreeColor(
   const counts: Record<ColorClass, number> = { red: 0, blue: 0, green: 0 }
 
   points.forEach((p, i) => {
-    const cls = classifyLayer(p)
+    const layerClass = classifyLayer(p.layer, report)
+    const localised = flaggedFrameX?.get(p.layer)
+    // Only narrows a flagged layer; never promotes an unflagged one.
+    const columns =
+      layerClass === 'red' && localised?.length
+        ? anomalyColumns(localised, entry.lengthMm)
+        : null
+
     const cy = -SCENE_HEIGHT / 2 + (i + 0.5) * layerUnits
     for (let c = 0; c < VOXEL_COLUMNS; c++) {
+      const cls: ColorClass = columns ? (columns.has(c) ? 'red' : 'green') : layerClass
       voxels.push({
         x: round(-lengthUnits / 2 + (c + 0.5) * cellW),
         y: round(cy),

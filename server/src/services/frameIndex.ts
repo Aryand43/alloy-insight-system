@@ -10,6 +10,9 @@ export interface IndexedFrame {
   position: number
   file: string
   tMs: number
+  /** Machine coordinates of the matched control row, in mm. */
+  xMm: number
+  yMm: number
   zMm: number
   /** Values the machine logged for the matched row. */
   meltpoolSizePx: number
@@ -46,6 +49,8 @@ async function build(
 
   const table = await readDataDat(entry.dataDatFile)
   const t = table.data.t
+  const x = table.data.x
+  const y = table.data.y
   const z = table.data.z
   const size = table.data.meltpoolSize
   const temp = table.data.meltpoolTemp
@@ -97,6 +102,8 @@ async function build(
       position: bucket.frames.length,
       file: path.join(entry.framesDir, c.file),
       tMs: c.tMs,
+      xMm: x[row],
+      yMm: y[row],
       zMm: frameZ,
       meltpoolSizePx: size[row],
       meltpoolTempC: temp[row],

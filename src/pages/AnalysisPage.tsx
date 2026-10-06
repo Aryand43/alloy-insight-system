@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
+  createSession,
   getFrames,
   getReconstruction,
   getSession,
@@ -8,10 +9,19 @@ import {
   getThreeColor,
   getThreshold,
 } from '../api/sessions'
+import {
+  getAnomalies,
+  getBuildBrief,
+  getLayerFrameAnomalies,
+} from '../api/anomaly'
 import { userMessage } from '../api/errors'
 import type {
   AnalysisSession,
+  AnomalyReport,
+  AnomalySeverity,
+  BuildBrief,
   Frame,
+  LayerFrameAnomalies,
   MeshPayload,
   ThresholdOverlay,
   ThresholdStats,
@@ -30,7 +40,10 @@ import {
 import { useAnalysisUiStore } from '../store/sessionStore'
 import { ThermalProfilePanel } from '../components/analysis/ThermalProfilePanel'
 import { ThermalSurface3D } from '../components/analysis/ThermalSurface3D'
-import { ThermalZones3D } from '../components/analysis/ThermalZones3D'
+import { SuperResolutionPanel } from '../components/analysis/SuperResolutionPanel'
+import { AnomalyBanner } from '../components/analysis/AnomalyBanner'
+import { BuildBriefStrip } from '../components/analysis/BuildBriefStrip'
+import { QueryPanel } from '../components/analysis/QueryPanel'
 import {
   getCalibration,
   getThermalField,
@@ -73,6 +86,14 @@ export function AnalysisPage() {
   const [error, setError] = useState<string | null>(null)
   const [overlayError, setOverlayError] = useState<string | null>(null)
 
+  const [report, setReport] = useState<AnomalyReport | null>(null)
+  const [brief, setBrief] = useState<BuildBrief | null>(null)
+  const [loadingReport, setLoadingReport] = useState(true)
+  const [frameAnomalies, setFrameAnomalies] = useState<LayerFrameAnomalies | null>(null)
+  const [switching, setSwitching] = useState(false)
+  const [layerNotice, setLayerNotice] = useState<string | null>(null)
+  const [switchError, setSwitchError] = useState<string | null>(null)
+  const [fieldFull, setFieldFull] = useState<ThermalField | null>(null)
   const [thermalIndex, setThermalIndex] = useState<ThermalLayerIndex | null>(null)
   const [frameWindow, setFrameWindow] = useState<ThermalFrameWindow | null>(null)
   const [frameStats, setFrameStats] = useState<ThermalFrameStats | null>(null)
@@ -82,11 +103,11 @@ export function AnalysisPage() {
   const [calibration, setCalibration] = useState<Calibration | null>(null)
   const [fieldError, setFieldError] = useState<string | null>(null)
 
-  /** Assumed lower band edge — only the machine's melt threshold is authoritative. */
-  const TRANSITION_C = 1400
-
+  const navigate = useNavigate()
   const mode = session?.config.mode === 'alloy' ? 'alloy' : 'process'
   const WINDOW = 24
+  /** The threshold the operator set in setup, if they changed it. */
+  const thresholdC = session?.config.thresholdC ?? null
 
   useEffect(() => {
     if (!sessionId) return
@@ -104,17 +125,23 @@ export function AnalysisPage() {
         setLoading3d(true)
         setLoadingStats(true)
 
-        const [fr, mesh, vol, st] = await Promise.all([
+        setLoadingReport(true)
+
+        const [fr, mesh, vol, st, rep, br] = await Promise.all([
           getFrames(sessionId),
           getReconstruction(sessionId),
           getThreeColor(sessionId),
           getStats(sessionId),
+          getAnomalies(sessionId),
+          getBuildBrief(sessionId),
         ])
         if (cancelled) return
         setFrames(fr)
         setRecon(mesh)
         setThreeColor(vol)
         setStats(st)
+        setReport(rep)
+        setBrief(br)
         if (fr[0]) setSelectedFrameId(fr[0].id)
       } catch {
         if (!cancelled) {
@@ -126,6 +153,7 @@ export function AnalysisPage() {
           setLoadingFrames(false)
           setLoading3d(false)
           setLoadingStats(false)
+          setLoadingReport(false)
         }
       }
     }
@@ -176,14 +204,34 @@ export function AnalysisPage() {
         if (cancelled) return
         setThermalIndex(index)
         if (index.layers.length) {
-          const known = index.layers.some((l) => l.layer === thermalLayer)
-          if (!known) {
+          const current = index.layers.find((l) => l.layer === thermalLayer)
+          if (!current && thermalLayer !== null) {
+            /*
+             * Arrived on a layer with no captured frames — a build's frames can
+             * stop short of its last layer. Snap to the nearest layer that has
+             * them and say so, rather than silently showing somewhere else.
+             */
+            const nearest = index.layers.reduce((best, l) =>
+              Math.abs(l.layer - thermalLayer) < Math.abs(best.layer - thermalLayer) ? l : best,
+            )
+            setThermalLayer(nearest.layer)
+            setThermalPos(Math.floor(nearest.frameCount / 2))
+            const first = index.layers[0].layer
+            const last = index.layers[index.layers.length - 1].layer
+            setLayerNotice(
+              `Layer ${thermalLayer} has no captured frames — showing layer ${nearest.layer}, the nearest that does. Frames were recorded for layers ${first}–${last} of this build.`,
+            )
+          } else if (!current) {
             // Open mid-build, mid-layer. Layer 1 is the cold start, where the
             // camera and machine log agree least, and a layer's first frame
             // can be blank as the laser starts the track.
             const opening = index.layers[Math.floor(index.layers.length / 2)]
             setThermalLayer(opening.layer)
             setThermalPos(Math.floor(opening.frameCount / 2))
+          } else if (thermalPos === 0) {
+            // Arrived on a layer chosen elsewhere — an anomaly jump or a chart
+            // click — so land mid-layer for the same reason.
+            setThermalPos(Math.floor(current.frameCount / 2))
           }
         }
       } catch (err) {
@@ -211,7 +259,13 @@ export function AnalysisPage() {
 
     async function load() {
       try {
-        const w = await getThermalWindow(sessionId, thermalLayer!, windowStart, WINDOW)
+        const w = await getThermalWindow(
+          sessionId,
+          thermalLayer!,
+          windowStart,
+          WINDOW,
+          thresholdC,
+        )
         if (!cancelled) setFrameWindow(w)
       } catch (err) {
         if (!cancelled) {
@@ -224,7 +278,7 @@ export function AnalysisPage() {
     return () => {
       cancelled = true
     }
-  }, [sessionId, mode, thermalLayer, windowStart])
+  }, [sessionId, mode, thermalLayer, windowStart, thresholdC])
 
   // Per-frame numbers, computed against the machine's own log.
   useEffect(() => {
@@ -233,7 +287,12 @@ export function AnalysisPage() {
 
     async function load() {
       try {
-        const s = await getThermalFrameStats(sessionId, thermalLayer!, thermalPos)
+        const s = await getThermalFrameStats(
+          sessionId,
+          thermalLayer!,
+          thermalPos,
+          thresholdC,
+        )
         if (!cancelled) {
           setFrameStats(s)
           setThermalError(null)
@@ -252,7 +311,26 @@ export function AnalysisPage() {
     return () => {
       cancelled = true
     }
-  }, [sessionId, mode, thermalLayer, thermalPos])
+  }, [sessionId, mode, thermalLayer, thermalPos, thresholdC])
+
+  // Which frames of the pinned layer left the build's steady state.
+  useEffect(() => {
+    if (!sessionId || mode !== 'alloy' || thermalLayer === null) return
+    let cancelled = false
+
+    getLayerFrameAnomalies(sessionId, thermalLayer)
+      .then((a) => {
+        if (!cancelled) setFrameAnomalies(a)
+      })
+      .catch(() => {
+        // The panel simply shows no deviation track.
+        if (!cancelled) setFrameAnomalies(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, mode, thermalLayer])
 
   // Calibration is memoised at module level; this just mirrors it into state.
   useEffect(() => {
@@ -292,6 +370,24 @@ export function AnalysisPage() {
     return () => controller.abort()
   }, [mode, buildId, thermalLayer, thermalPos])
 
+  /*
+   * The super-resolution comparison needs native pixels, so it fetches the
+   * field at stride 1 rather than the stride-2 version the 3D views use —
+   * upscaling an already-decimated field would not be an honest "raw" view.
+   */
+  useEffect(() => {
+    if (mode !== 'alloy' || !buildId || thermalLayer === null) return
+    const controller = new AbortController()
+
+    getThermalField(buildId, thermalLayer, thermalPos, 1, controller.signal)
+      .then(setFieldFull)
+      .catch(() => {
+        if (!controller.signal.aborted) setFieldFull(null)
+      })
+
+    return () => controller.abort()
+  }, [mode, buildId, thermalLayer, thermalPos])
+
   const thermalLayers = thermalIndex?.layers ?? []
 
   /**
@@ -324,6 +420,72 @@ export function AnalysisPage() {
   }
 
   const activeLayer = thermalLayers.find((l) => l.layer === thermalLayer) ?? null
+
+  /** Flagged layers, keyed for the chart and the layer rail. */
+  const flagged = useMemo(() => {
+    const map = new Map<number, AnomalySeverity>()
+    for (const a of report?.anomalies ?? []) map.set(a.layer, a.severity)
+    return map
+  }, [report])
+
+  /**
+   * Selects a layer in whichever mode is open.
+   *
+   * In Alloy Insight not every layer has captured frames, so a click on the
+   * chart snaps to the nearest layer that does rather than failing.
+   */
+  function selectLayer(layer: number) {
+    if (mode !== 'alloy') {
+      setSelectedFrameId(`L${layer}`)
+      return
+    }
+    if (!thermalLayers.length) return
+    const nearest = thermalLayers.reduce((best, l) =>
+      Math.abs(l.layer - layer) < Math.abs(best.layer - layer) ? l : best,
+    )
+    setLayerNotice(
+      nearest.layer === layer
+        ? null
+        : `Layer ${layer} has no captured frames — showing layer ${nearest.layer}, the nearest that does.`,
+    )
+    setThermalLayer(nearest.layer)
+  }
+
+  /**
+   * Opens the same layer in the other mode.
+   *
+   * A session is per-mode on the server, so this creates the counterpart
+   * session for the same build and carries the layer across — the path from
+   * "this layer drifted" to "here are its frames" and back.
+   */
+  async function openOtherMode(layer: number) {
+    if (!session || switching) return
+    setSwitching(true)
+    setSwitchError(null)
+    try {
+      const next = await createSession({
+        ...session.config,
+        mode: mode === 'alloy' ? 'process' : 'alloy',
+      })
+      if (mode === 'alloy') setSelectedFrameId(`L${layer}`)
+      else setThermalLayer(layer)
+      navigate(`/analysis/${next.id}`)
+    } catch (err) {
+      setSwitchError(
+        userMessage(
+          err,
+          mode === 'alloy'
+            ? 'Could not open Process Insight for this build.'
+            : 'This build has no thermal frames, so Alloy Insight cannot open it.',
+        ),
+      )
+    } finally {
+      setSwitching(false)
+    }
+  }
+
+  // Only thermal builds can open Alloy Insight; every build has Process.
+  const canOpenOtherMode = mode === 'alloy' || (brief?.monitoringFrames ?? 0) > 0
 
   // e.g. "10-pass · R5 · 56 layers × 0.9 mm", from the decoded build id.
   const run = session?.config.sampleId.match(/r(\d+)$/i)?.[1]
@@ -383,14 +545,37 @@ export function AnalysisPage() {
               {mode === 'alloy' && thermalIndex && (
                 <SummaryItem
                   label="Melt threshold"
-                  value={`${thermalIndex.meltThresholdC.toFixed(0)} °C`}
+                  value={`${(thresholdC ?? thermalIndex.meltThresholdC).toFixed(0)} °C`}
                   mono
-                  note="(machine log)"
+                  note={thresholdC ? '(set in setup)' : '(machine log)'}
                 />
               )}
             </>
           )}
         </div>
+
+        {layerNotice && (
+          <p className="rounded-sm border border-steel-600/50 bg-steel-800/50 px-3 py-2 text-xs text-steel-200">
+            {layerNotice}
+          </p>
+        )}
+
+        {switchError && (
+          <p className="rounded-sm border border-signal-red/40 bg-signal-red/10 px-3 py-2 text-xs text-signal-red-text">
+            {switchError}
+          </p>
+        )}
+
+        <AnomalyBanner
+          report={report}
+          loading={loadingReport}
+          onGoToLayer={selectLayer}
+          onInspectLayer={canOpenOtherMode ? openOtherMode : null}
+          inspectLabel={mode === 'alloy' ? 'Open in Process Insight' : 'Inspect frames'}
+          busy={switching}
+        />
+
+        <BuildBriefStrip brief={brief} loading={loadingSession} />
 
         {/* 2×2 viz grid */}
         {/* Row heights come from the panels' viz-primary / viz-secondary sizes. */}
@@ -400,8 +585,13 @@ export function AnalysisPage() {
               <ThermalProfilePanel
                 layers={thermalLayers}
                 activeLayer={thermalLayer}
-                onSelectLayer={setThermalLayer}
+                onSelectLayer={selectLayer}
                 loading={loadingThermal}
+                buildLayerCount={
+                  session?.config.layers ?? report?.layersAnalysed ?? thermalLayers.length
+                }
+                flagged={flagged}
+                transitionEndLayer={report?.transition.endLayer}
               />
             ) : (
               <RawImagesPanel
@@ -409,6 +599,8 @@ export function AnalysisPage() {
                 selectedId={selectedFrameId}
                 onSelect={setSelectedFrameId}
                 loading={loadingFrames}
+                flagged={flagged}
+                transitionEndLayer={report?.transition.endLayer}
               />
             )}
           </Panel>
@@ -420,8 +612,9 @@ export function AnalysisPage() {
                 position={thermalPos}
                 onSeek={seek}
                 stats={frameStats}
-                meltThresholdC={thermalIndex?.meltThresholdC ?? 1560}
+                meltThresholdC={thresholdC ?? thermalIndex?.meltThresholdC ?? 1560}
                 tempMaxC={thermalIndex?.tempRangeC[1]}
+                frameAnomalies={frameAnomalies}
                 loading={loadingThermal}
                 error={thermalError}
               />
@@ -442,15 +635,12 @@ export function AnalysisPage() {
               <Reconstruction3D data={recon} loading={loading3d} />
             )}
           </Panel>
-          <Panel title={mode === 'alloy' ? 'Thermal Zones' : 'Layer Stability Map'}>
+          <Panel title={mode === 'alloy' ? 'Super Resolution' : 'Layer Stability Map'}>
             {mode === 'alloy' ? (
-              <ThermalZones3D
-                field={field}
+              <SuperResolutionPanel
+                field={fieldFull}
                 calibration={calibration}
-                thresholdCount={497}
-                meltThresholdC={thermalIndex?.meltThresholdC ?? 1560}
-                transitionC={TRANSITION_C}
-                loading={loadingThermal || !field}
+                loading={loadingThermal || !fieldFull}
                 error={fieldError}
               />
             ) : (
@@ -460,6 +650,8 @@ export function AnalysisPage() {
         </div>
 
         <StatsStrip stats={stats} loading={loadingStats} />
+
+        {session && <QueryPanel sessionId={session.id} buildId={session.config.sampleId} />}
       </div>
     </AppShell>
   )

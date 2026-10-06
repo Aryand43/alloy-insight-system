@@ -20,6 +20,8 @@ import {
   BACKEND_DATA_DIR,
   CAMERA_CALIBRATION,
   COUPON_QUALITY_XLSX,
+  GOM_DIR,
+  GOM_FILES,
   KIV_DIR,
   MEANSIZE_DIR,
   MEANTEMP_DIR,
@@ -27,24 +29,71 @@ import {
 } from '../server/src/config'
 import { getBuild, getCatalog } from '../server/src/services/catalog'
 import { getFrameIndex } from '../server/src/services/frameIndex'
+import { getLayerSeries } from '../server/src/services/layers'
+import { buildAnomalyReport } from '../server/src/services/anomaly'
+import type { AnomalyReport } from '../src/domain/types'
 
 const OUT = path.join(REPO_ROOT, 'demo-data')
 
 /** Best of the 10-pass group, and free of the corrupt frames found in 60106308r3. */
 const THERMAL_BUILD = '60105609r5'
 /**
- * Cold start into the adjacent layer (so layer roll-over can be shown), steady
- * state, final layer — every 3rd frame, ~3.4 Hz of the camera's 10.3 Hz.
+ * How many layers of frames to ship, and at what sampling.
  *
- * Sized so the whole CLI upload stays under Vercel Hobby's 100 MB source
- * limit: ~80 MB of data plus ~0.5 MB of code. Keeping layer 3 as well pushes
+ * Four layers at every 3rd frame (~3.4 Hz of the camera's 10.3 Hz) is what
+ * fits: the whole CLI upload has to stay under Vercel Hobby's 100 MB source
+ * limit, which is ~80 MB of data plus ~0.5 MB of code. A fifth layer pushes
  * the upload to ~98 MB, which is too close.
+ *
+ * Which four is decided by the anomaly model rather than fixed here — see
+ * pickLayers.
  */
-const LAYERS = [1, 2, 28, 56]
+const LAYER_BUDGET = 4
+const FLAGGED_LAYERS = 2
 const FRAME_STEP = 3
 
 /** The banner text lives in .env.demo; the script rewrites it so it cannot drift from the data. */
 const ENV_DEMO = path.join(REPO_ROOT, '.env.demo')
+
+/**
+ * Which layers earn their place in the demo.
+ *
+ * The old fixed list (1, 2, 28, 56) was chosen before there was anything to
+ * detect, and layer 1 is the cold start where the camera and the machine log
+ * agree least. Now the model picks: the highest-scoring flagged layers, so the
+ * demo opens on something worth looking at, plus layers well inside the build's
+ * steady state to compare them against.
+ *
+ * Only layers that actually have frames are eligible.
+ */
+function pickLayers(
+  report: AnomalyReport,
+  available: number[],
+): { layer: number; why: 'flagged' | 'steady' }[] {
+  const eligible = new Set(available)
+  const chosen: { layer: number; why: 'flagged' | 'steady' }[] = []
+
+  for (const a of [...report.anomalies].sort((x, y) => y.score - x.score)) {
+    if (chosen.length >= FLAGGED_LAYERS) break
+    if (!eligible.has(a.layer) || chosen.some((c) => c.layer === a.layer)) continue
+    chosen.push({ layer: a.layer, why: 'flagged' })
+  }
+
+  // Steady layers: spread through the part of the build past the ramp-up that
+  // the model did not flag, so the comparison is not all from one height.
+  const flaggedSet = new Set(report.anomalies.map((a) => a.layer))
+  const steady = available
+    .filter((l) => l > report.transition.endLayer && !flaggedSet.has(l))
+    .sort((a, b) => a - b)
+  const wanted = LAYER_BUDGET - chosen.length
+  for (let i = 0; i < wanted && steady.length; i++) {
+    const at = Math.round(((i + 1) / (wanted + 1)) * (steady.length - 1))
+    const layer = steady[at]
+    if (!chosen.some((c) => c.layer === layer)) chosen.push({ layer, why: 'steady' })
+  }
+
+  return chosen.sort((a, b) => a.layer - b.layer)
+}
 
 function ordinal(n: number): string {
   if (n === 1) return '1st'
@@ -90,6 +139,9 @@ async function main(): Promise<void> {
   await copyTree(KIV_DIR)
   await copyInto(COUPON_QUALITY_XLSX)
   await copyInto(CAMERA_CALIBRATION)
+  // Measured geometry for all 26 builds — a few hundred KB, and the only
+  // ground truth in the demo that is independent of anything thermal.
+  for (const file of GOM_FILES) await copyInto(path.join(GOM_DIR, file))
 
   // Alloy Insight — one build, selected layers, every other frame.
   const entry = await getBuild(THERMAL_BUILD)
@@ -99,14 +151,26 @@ async function main(): Promise<void> {
   await copyInto(entry.dataDatFile)
 
   const index = await getFrameIndex(entry)
-  const layers: { layer: number; framesAvailable: number; framesIncluded: number }[] = []
-  for (const n of LAYERS) {
-    const layer = index.byLayer.get(n)
-    if (!layer) throw new Error(`${THERMAL_BUILD} has no frames for layer ${n}`)
+  const report = buildAnomalyReport(await getLayerSeries(entry))
+  const chosen = pickLayers(report, [...index.byLayer.keys()])
+  console.log(
+    `[demo] layers: ${chosen.map((c) => `${c.layer} (${c.why})`).join(', ')}`,
+  )
+
+  const layers: {
+    layer: number
+    why: string
+    framesAvailable: number
+    framesIncluded: number
+  }[] = []
+  for (const choice of chosen) {
+    const layer = index.byLayer.get(choice.layer)
+    if (!layer) throw new Error(`${THERMAL_BUILD} has no frames for layer ${choice.layer}`)
     const picked = layer.frames.filter((_, i) => i % FRAME_STEP === 0)
     for (const frame of picked) await copyInto(frame.file)
     layers.push({
-      layer: n,
+      layer: choice.layer,
+      why: choice.why,
       framesAvailable: layer.frames.length,
       framesIncluded: picked.length,
     })
@@ -116,6 +180,7 @@ async function main(): Promise<void> {
     generatedAt: new Date().toISOString(),
     note: 'Demo subset of Backend-Data. Unpublished research data — do not commit to a public repository.',
     thermal: { buildId: THERMAL_BUILD, frameStep: FRAME_STEP, layers },
+    anomalyVerdict: report.verdict,
     totals: { files, bytes },
   }
   await fs.writeFile(
@@ -124,7 +189,9 @@ async function main(): Promise<void> {
   )
 
   const buildCount = (await getCatalog()).length
-  const note = `Demo dataset: thermal frames for build ${THERMAL_BUILD} (layers ${LAYERS.join(', ')}; every ${ordinal(FRAME_STEP)} frame). All ${buildCount} builds are available in Process Insight.`
+  const flaggedList = layers.filter((l) => l.why === 'flagged').map((l) => l.layer)
+  const steadyList = layers.filter((l) => l.why !== 'flagged').map((l) => l.layer)
+  const note = `Demo dataset: thermal frames for build ${THERMAL_BUILD} — layers ${flaggedList.join(', ')} flagged by the anomaly model and ${steadyList.join(', ')} within steady state, every ${ordinal(FRAME_STEP)} frame. All ${buildCount} builds are available in Process Insight.`
   const env = await fs.readFile(ENV_DEMO, 'utf8')
   const line = `VITE_DEMO_NOTE="${note}"`
   await fs.writeFile(

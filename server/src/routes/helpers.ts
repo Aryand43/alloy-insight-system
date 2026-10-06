@@ -1,4 +1,5 @@
 import type { Request } from 'express'
+import { calibration } from '../services/calibration.js'
 import { getBuild, type CatalogEntry } from '../services/catalog.js'
 import {
   DEFAULT_THRESHOLDS,
@@ -33,6 +34,36 @@ export function thresholdsFrom(req: Request): Thresholds {
     sizeStablePct: numParam(q.sizeStable, DEFAULT_THRESHOLDS.sizeStablePct),
     sizeTransitionPct: numParam(q.sizeTransition, DEFAULT_THRESHOLDS.sizeTransitionPct),
   }
+}
+
+/**
+ * The segmentation threshold the operator set in setup, in °C.
+ *
+ * Travels as a query parameter rather than being read from the stored session
+ * because sessions are revived from their id after a restart — a threshold
+ * held only in memory would silently revert to the machine's.
+ *
+ * Bounded by the camera calibration: outside 980-2008 °C the LUT cannot
+ * express the threshold at all, so the request is rejected rather than
+ * quietly clamped.
+ */
+export function meltThresholdFrom(req: Request): number | null {
+  const raw = req.query.thresholdC
+  if (raw === undefined) return null
+  const n = Number(raw)
+  if (!Number.isFinite(n)) {
+    throw new HttpError('thresholdC must be a temperature in °C', 400)
+  }
+  const lut = calibration()
+  const min = lut[0]
+  const max = lut[lut.length - 1]
+  if (n < min || n > max) {
+    throw new HttpError(
+      `A threshold of ${n} °C is outside what this camera can measure (${min.toFixed(0)}-${max.toFixed(0)} °C).`,
+      400,
+    )
+  }
+  return n
 }
 
 export async function requireBuild(id: string): Promise<CatalogEntry> {

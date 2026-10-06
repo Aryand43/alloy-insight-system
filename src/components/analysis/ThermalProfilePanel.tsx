@@ -1,4 +1,5 @@
-import type { AlertLevel, ThermalLayerSummary } from '../../domain/types'
+import type { AlertLevel, AnomalySeverity, ThermalLayerSummary } from '../../domain/types'
+import { ProfileChart } from './ProfileChart'
 
 const LEVEL_BAR: Record<AlertLevel, string> = {
   stable: 'bg-signal-green',
@@ -19,17 +20,31 @@ interface ThermalProfilePanelProps {
   activeLayer: number | null
   onSelectLayer: (layer: number) => void
   loading?: boolean
+  /** Layers in the build, which is what the chart's x axis spans. */
+  buildLayerCount: number
+  /** Flagged layers, for the rail and the chart's click targets. */
+  flagged?: Map<number, AnomalySeverity>
+  /** Layers up to here are the ramp-up, so they are shown but never flagged. */
+  transitionEndLayer?: number
 }
 
 /**
  * Left panel in Alloy Insight. Stays pinned on the selected layer while the
  * melt-pool panel scrubs the frames captured within it.
+ *
+ * Both the chart and the rail below it select a layer: the chart is the
+ * natural target when reading the trend, the rail when stepping layer by
+ * layer. Layers with no captured frames are absent from the rail, and the page
+ * snaps a chart click to the nearest layer that has them.
  */
 export function ThermalProfilePanel({
   layers,
   activeLayer,
   onSelectLayer,
   loading,
+  buildLayerCount,
+  flagged,
+  transitionEndLayer = 0,
 }: ThermalProfilePanelProps) {
   if (loading || !layers.length) {
     return (
@@ -45,14 +60,27 @@ export function ThermalProfilePanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="viz-primary relative overflow-hidden rounded-sm bg-steel-950/50">
-        <img
-          src={current.profileUrl}
-          alt={`Mean temperature by layer, with layer ${current.layer} marked`}
-          className="absolute inset-0 h-full w-full object-contain"
-          decoding="async"
-        />
-      </div>
+      <ProfileChart
+        src={current.profileUrl}
+        alt={`Mean temperature by layer, with layer ${current.layer} marked`}
+        layerCount={Math.max(buildLayerCount, ...layers.map((l) => l.layer))}
+        activeLayer={current.layer}
+        onSelectLayer={onSelectLayer}
+        flagged={flagged}
+        describeLayer={(layer) => {
+          const match = layers.find((l) => l.layer === layer)
+          const severity = flagged?.get(layer)
+          return [
+            `Layer ${layer}`,
+            match ? `z ${match.zMm.toFixed(2)} mm` : null,
+            match ? `${match.meanTempC.toFixed(0)} °C` : 'no frames captured',
+            layer <= transitionEndLayer ? 'ramp-up — not scored' : null,
+            severity ? `flagged (${severity})` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        }}
+      />
 
       <div className="flex flex-col gap-1.5">
         <div
@@ -63,23 +91,42 @@ export function ThermalProfilePanel({
           {layers.map((l, i) => {
             const active = l.layer === current.layer
             const numbered = active || i % labelEvery === 0
+            const severity = flagged?.get(l.layer)
+            const rampUp = l.layer <= transitionEndLayer
             return (
               <button
                 key={l.layer}
                 type="button"
                 onClick={() => onSelectLayer(l.layer)}
                 aria-pressed={active}
-                aria-label={`Layer ${l.layer}: ${LEVEL_LABEL[l.level]}, mean ${l.meanTempC.toFixed(0)} °C, ${l.frameCount} frames`}
-                title={`Layer ${l.layer} · z ${l.zMm.toFixed(2)} mm · ${l.frameCount} frames · ${l.meanTempC.toFixed(0)} °C`}
+                aria-label={`Layer ${l.layer}: ${LEVEL_LABEL[l.level]}, mean ${l.meanTempC.toFixed(0)} °C, ${l.frameCount} frames${severity ? `, flagged (${severity})` : ''}`}
+                title={[
+                  `Layer ${l.layer}`,
+                  `z ${l.zMm.toFixed(2)} mm`,
+                  `${l.frameCount} frames`,
+                  `${l.meanTempC.toFixed(0)} °C`,
+                  rampUp ? 'ramp-up — not scored' : null,
+                  severity ? `flagged (${severity})` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
                 className="flex min-w-3 shrink-0 flex-col items-center gap-1"
               >
                 <span
                   className={[
                     'block w-2.5 rounded-[1px] transition-all',
-                    LEVEL_BAR[l.level],
+                    severity === 'alert'
+                      ? 'bg-signal-red'
+                      : severity === 'watch'
+                        ? 'bg-signal-yellow'
+                        : LEVEL_BAR[l.level],
                     active
                       ? 'h-10 opacity-100 ring-2 ring-steel-50'
-                      : 'h-7 opacity-50 hover:opacity-90',
+                      : severity
+                        ? 'h-9 opacity-95 hover:opacity-100'
+                        : rampUp
+                          ? 'h-5 opacity-30 hover:opacity-70'
+                          : 'h-7 opacity-50 hover:opacity-90',
                   ].join(' ')}
                 />
                 <span
@@ -103,6 +150,9 @@ export function ThermalProfilePanel({
               {LEVEL_LABEL[level]}
             </span>
           ))}
+          {flagged && flagged.size > 0 && (
+            <span className="text-steel-300">· taller bars are layers the model flagged</span>
+          )}
         </div>
       </div>
 

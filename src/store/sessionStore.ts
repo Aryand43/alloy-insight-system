@@ -4,9 +4,18 @@ import { getMaterialById, MATERIALS } from '../domain/materials'
 
 const defaultMaterial = MATERIALS[0]
 
+/**
+ * The machine's own logged melt threshold, and the default for the
+ * segmentation threshold the operator can override in setup. Starting here
+ * means an untouched form reproduces the machine's own melt-pool detection
+ * exactly, and any other value is a deliberate choice.
+ */
+export const MACHINE_MELT_THRESHOLD_C = 1560
+
 export interface SetupFormState {
   materialId: string
   processType: ProcessType
+  /** Segmentation threshold in °C — pixels above it count as melt pool. */
   meltingTempC: number
   dataSourceName: string
   configName: string
@@ -32,7 +41,7 @@ const initial = {
   materialId: defaultMaterial.id,
   // Every coupon in the corpus was built by laser powder DED.
   processType: 'laser_powder_ded' as ProcessType,
-  meltingTempC: defaultMaterial.defaultMeltTempC,
+  meltingTempC: MACHINE_MELT_THRESHOLD_C,
   dataSourceName: '',
   configName: '',
   sampleId: '',
@@ -45,13 +54,9 @@ export const useSetupStore = create<SetupFormState>((set, get) => ({
   setSampleId: (sampleId) => set({ sampleId }),
   setPassFilter: (passFilter) => set({ passFilter }),
   setThermalOnly: (thermalOnly) => set({ thermalOnly }),
-  setMaterialId: (id) => {
-    const mat = getMaterialById(id)
-    set({
-      materialId: id,
-      meltingTempC: mat?.defaultMeltTempC ?? get().meltingTempC,
-    })
-  },
+  // Changing material no longer rewrites the threshold: the threshold is the
+  // operator's segmentation choice, not a property of the alloy.
+  setMaterialId: (materialId) => set({ materialId }),
   setProcessType: (processType) => set({ processType }),
   setMeltingTempC: (meltingTempC) => set({ meltingTempC }),
   setDataSourceName: (dataSourceName) => set({ dataSourceName }),
@@ -64,6 +69,9 @@ export const useSetupStore = create<SetupFormState>((set, get) => ({
       materialLabel: mat?.label ?? s.materialId,
       processType: s.processType,
       meltingTempC: s.meltingTempC,
+      // What the server segments at. Sent on every session so the threshold
+      // the operator chose is the one the images and numbers are made with.
+      thresholdC: s.meltingTempC,
       dataSourceName: s.dataSourceName || s.sampleId || 'demo_sequence.zip',
       // Empty lets the server name it from the build, e.g. "10-pass · R5".
       configName: s.configName,

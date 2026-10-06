@@ -1,4 +1,5 @@
-import { ROI_CENTER_COL, ROI_CENTER_ROW, ROI_RADIUS } from '../config.js'
+import { PIXEL_PITCH_UM, ROI_CENTER_COL, ROI_CENTER_ROW, ROI_RADIUS } from '../config.js'
+import type { MeltPoolDimensions } from '../../../src/domain/types.js'
 import { calibration, countToCelsius } from './calibration.js'
 import { rampTableForCounts } from './colormap.js'
 import { encodePng } from './png.js'
@@ -33,6 +34,22 @@ export interface FrameStats {
   loggedTempC: number
   thresholdCount: number
   thresholdC: number
+  thresholdSource: 'machine' | 'user'
+  dimensions: MeltPoolDimensions | null
+}
+
+/** Steady-state pool the current frame's dimensions are compared against. */
+export interface PoolReference {
+  lengthMm: number
+  widthMm: number
+}
+
+export interface ThresholdChoice {
+  /** Raw camera count the mask is cut at. */
+  count: number
+  /** The same threshold in °C, for labelling. */
+  celsius: number
+  source: 'machine' | 'user'
 }
 
 function inRoi(row: number, col: number): boolean {
@@ -64,12 +81,123 @@ export function meltPoolMask(frame: ThermalFrame, thresholdCount: number): Uint8
   return mask
 }
 
+/**
+ * Width and length of the segmented pool, measured rather than inferred.
+ *
+ * Area alone cannot give both: the old equivalent-diameter estimate assumed a
+ * circle. Here the mask's own orientation is recovered from the second moments
+ * of its pixels, and the pool is then measured end to end along its long and
+ * short axes. `length` is the long axis, which runs with the direction of
+ * travel, and `width` the short one across the bead.
+ */
+export function meltPoolDimensions(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  reference?: PoolReference | null,
+): MeltPoolDimensions | null {
+  let n = 0
+  let sumR = 0
+  let sumC = 0
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      if (!mask[r * width + c]) continue
+      n += 1
+      sumR += r
+      sumC += c
+    }
+  }
+  // Below this the second moments are dominated by single pixels.
+  if (n < 12) return null
+
+  const mr = sumR / n
+  const mc = sumC / n
+  let srr = 0
+  let scc = 0
+  let src = 0
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      if (!mask[r * width + c]) continue
+      const dr = r - mr
+      const dc = c - mc
+      srr += dr * dr
+      scc += dc * dc
+      src += dr * dc
+    }
+  }
+  srr /= n
+  scc /= n
+  src /= n
+
+  // Principal axes of a symmetric 2x2 covariance, in closed form.
+  const mid = (srr + scc) / 2
+  const diff = Math.sqrt(((srr - scc) / 2) ** 2 + src * src)
+  const major = { value: mid + diff }
+  // Eigenvector for the larger eigenvalue, as (row, col).
+  let vr: number
+  let vc: number
+  if (Math.abs(src) > 1e-9) {
+    vr = major.value - scc
+    vc = src
+  } else {
+    // Axis-aligned: pick whichever axis carries more spread.
+    vr = srr >= scc ? 1 : 0
+    vc = srr >= scc ? 0 : 1
+  }
+  const norm = Math.hypot(vr, vc) || 1
+  vr /= norm
+  vc /= norm
+
+  // Caliper extent: project every mask pixel onto each axis and span it.
+  let majMin = Infinity
+  let majMax = -Infinity
+  let minMin = Infinity
+  let minMax = -Infinity
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      if (!mask[r * width + c]) continue
+      const dr = r - mr
+      const dc = c - mc
+      const a = dr * vr + dc * vc
+      const b = -dr * vc + dc * vr
+      if (a < majMin) majMin = a
+      if (a > majMax) majMax = a
+      if (b < minMin) minMin = b
+      if (b > minMax) minMax = b
+    }
+  }
+
+  // +1: a single-pixel-wide pool spans one pixel, not zero.
+  const lengthPx = majMax - majMin + 1
+  const widthPx = minMax - minMin + 1
+  const mmPerPx = PIXEL_PITCH_UM / 1000
+  const lengthMm = lengthPx * mmPerPx
+  const widthMm = widthPx * mmPerPx
+
+  const round = (v: number, dp = 3) => Math.round(v * 10 ** dp) / 10 ** dp
+  const deviation = (value: number, ref: number | undefined) =>
+    ref && ref > 0 ? round((100 * (value - ref)) / ref, 1) : null
+
+  return {
+    lengthMm: round(lengthMm),
+    widthMm: round(widthMm),
+    lengthPx: round(lengthPx, 1),
+    widthPx: round(widthPx, 1),
+    // Image convention: the long axis measured anticlockwise from horizontal.
+    angleDeg: round((Math.atan2(vr, vc) * 180) / Math.PI, 1),
+    aspect: widthMm > 0 ? round(lengthMm / widthMm, 2) : 0,
+    lengthDeviationPct: deviation(lengthMm, reference?.lengthMm),
+    widthDeviationPct: deviation(widthMm, reference?.widthMm),
+  }
+}
+
 export function computeStats(
   frame: ThermalFrame,
   ref: IndexedFrame,
-  meltThresholdC: number,
+  threshold: ThresholdChoice,
+  poolReference?: PoolReference | null,
 ): FrameStats {
-  const mask = meltPoolMask(frame, ref.thresholdCount)
+  const mask = meltPoolMask(frame, threshold.count)
   let count = 0
   let sum = 0
   let max = -Infinity
@@ -86,8 +214,10 @@ export function computeStats(
     maxTempC: count ? max : 0,
     loggedSizePx: ref.meltpoolSizePx,
     loggedTempC: ref.meltpoolTempC,
-    thresholdCount: ref.thresholdCount,
-    thresholdC: meltThresholdC,
+    thresholdCount: threshold.count,
+    thresholdC: threshold.celsius,
+    thresholdSource: threshold.source,
+    dimensions: meltPoolDimensions(mask, frame.width, frame.height, poolReference),
   }
 }
 
@@ -99,6 +229,8 @@ export interface RenderOptions {
   overlay: boolean
   /** Draw the circle the controller actually evaluates. */
   showRoi?: boolean
+  /** Overrides the machine's threshold when the operator set their own. */
+  thresholdCount?: number
 }
 
 export function renderFrame(
@@ -214,7 +346,8 @@ export async function renderIndexedFrame(
   ref: IndexedFrame,
   options: RenderOptions,
 ): Promise<Buffer> {
-  const key = `${ref.file}|${options.overlay ? 1 : 0}|${options.showRoi ? 1 : 0}`
+  const cut = options.thresholdCount ?? ref.thresholdCount
+  const key = `${ref.file}|${options.overlay ? 1 : 0}|${options.showRoi ? 1 : 0}|${cut}`
   const hit = pngCache.get(key)
   if (hit) {
     pngCache.delete(key)
@@ -223,7 +356,7 @@ export async function renderIndexedFrame(
   }
 
   const frame = await loadFrame(ref.file)
-  const png = renderFrame(frame, ref.thresholdCount, options)
+  const png = renderFrame(frame, cut, options)
 
   pngCache.set(key, png)
   if (pngCache.size > CACHE_LIMIT) {
@@ -235,8 +368,60 @@ export async function renderIndexedFrame(
 
 export async function statsForIndexedFrame(
   ref: IndexedFrame,
-  meltThresholdC: number,
+  threshold: ThresholdChoice,
+  poolReference?: PoolReference | null,
 ): Promise<FrameStats> {
   const frame = await loadFrame(ref.file)
-  return computeStats(frame, ref, meltThresholdC)
+  return computeStats(frame, ref, threshold, poolReference)
+}
+
+/**
+ * The build's steady-state pool size, for the deviation readout.
+ *
+ * Segmenting every frame to get a reference would cost minutes, so this
+ * samples frames spread across the post-transition layers and takes the
+ * median of each dimension. Cached per build and threshold, because changing
+ * the threshold changes the reference too.
+ */
+const poolReferenceCache = new Map<string, Promise<PoolReference | null>>()
+
+export function poolReference(
+  buildId: string,
+  thresholdCount: number,
+  sample: IndexedFrame[],
+): Promise<PoolReference | null> {
+  const key = `${buildId}|${thresholdCount}`
+  let hit = poolReferenceCache.get(key)
+  if (!hit) {
+    hit = (async () => {
+      const lengths: number[] = []
+      const widths: number[] = []
+      for (const ref of sample) {
+        try {
+          const frame = await loadFrame(ref.file)
+          const dims = meltPoolDimensions(
+            meltPoolMask(frame, thresholdCount),
+            frame.width,
+            frame.height,
+          )
+          if (!dims) continue
+          lengths.push(dims.lengthMm)
+          widths.push(dims.widthMm)
+        } catch {
+          // A corrupt frame just drops out of the sample.
+        }
+      }
+      if (lengths.length < 3) return null
+      const mid = (values: number[]) => {
+        const sorted = [...values].sort((a, b) => a - b)
+        return sorted[sorted.length >> 1]
+      }
+      return { lengthMm: mid(lengths), widthMm: mid(widths) }
+    })().catch(() => {
+      poolReferenceCache.delete(key)
+      return null
+    })
+    poolReferenceCache.set(key, hit)
+  }
+  return hit
 }

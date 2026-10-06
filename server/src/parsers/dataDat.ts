@@ -116,3 +116,32 @@ export function nearestIndex(sorted: Float64Array, query: number): number {
   if (lo >= sorted.length) return sorted.length - 1
   return query - sorted[lo - 1] <= sorted[lo] - query ? lo - 1 : lo
 }
+
+/**
+ * Reads only the `# Key: value` header block of a run's `Data.dat`.
+ *
+ * The full parse walks ~22k rows and allocates 18 columns; the build brief
+ * only needs the handful of settings in the header, so this reads the first
+ * few kilobytes and stops at the column row.
+ */
+export async function readDataDatHeader(
+  file: string,
+): Promise<Record<string, string>> {
+  const handle = await fs.open(file, 'r')
+  try {
+    const buffer = Buffer.alloc(8192)
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
+    const meta: Record<string, string> = {}
+    for (const raw of buffer.subarray(0, bytesRead).toString('utf8').split('\n')) {
+      const line = raw.trim()
+      if (!line) continue
+      // The header ends at the comma-separated column row.
+      if (!line.startsWith('#')) break
+      const m = /^#\s*([^:]+):\s*(.*)$/.exec(line)
+      if (m) meta[m[1].trim()] = m[2].trim()
+    }
+    return meta
+  } finally {
+    await handle.close()
+  }
+}

@@ -119,3 +119,62 @@ export async function readCouponQuality(
 
   return rows
 }
+
+/* ------------------------------------------------------------ GOM report -- */
+
+export interface GomDeviation {
+  /** Layer increment the sample was built at, e.g. 0.9 mm. */
+  layerHeightMm: number
+  run: number
+  /** Mean surface deviation of the top face, from GOM's dXYZ comparison. */
+  heightMm: number
+}
+
+/**
+ * Reads one GOM summary sheet, e.g. the `6010` tab of `6010GOM.xlsx`.
+ *
+ * Layout is a stack of small blocks, each starting with its own
+ * `SAMPLE | Z | <face> | Ave of the N points at...` header: the first block is
+ * the top face (HEIGHT), later blocks are FRONT and the other faces. Only the
+ * height block is read — it is the one that says whether the wall reached its
+ * target height.
+ *
+ * Sample labels are `Z<increment>R<run>`, e.g. `Z0.9R5`, which together with
+ * the workbook's pass group identify a build: `6010` + `Z0.9R5` is
+ * `60105609r5`. The `Z` column repeats the increment but disagrees with the
+ * label in the 6007 and 6010 sheets, so the label is taken as authoritative.
+ */
+export async function readGomHeights(file: string): Promise<GomDeviation[]> {
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.readFile(file)
+  // The summary tab is the one named for the pass group, e.g. `6010`.
+  const ws = wb.worksheets.find((s) => /^\d{4}$/.test(s.name.trim())) ?? wb.worksheets[0]
+  if (!ws) return []
+
+  const out: GomDeviation[] = []
+  let inHeightBlock = false
+
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    const first = toText(row.getCell(1).value)
+    const third = toText(row.getCell(3).value)
+
+    if (first?.toUpperCase() === 'SAMPLE') {
+      // A new block starts; only keep reading if it is the height block.
+      inHeightBlock = (third ?? '').toUpperCase() === 'HEIGHT'
+      return
+    }
+    if (!inHeightBlock || !first) return
+
+    const m = /^Z([\d.]+)R(\d+)$/i.exec(first.replace(/\s+/g, ''))
+    const value = toNumber(row.getCell(3).value)
+    if (!m || value === null) return
+
+    out.push({
+      layerHeightMm: Number(m[1]),
+      run: Number(m[2]),
+      heightMm: value,
+    })
+  })
+
+  return out
+}

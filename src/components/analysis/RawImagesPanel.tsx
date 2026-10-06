@@ -1,10 +1,15 @@
-import type { Frame } from '../../domain/types'
+import type { AnomalySeverity, Frame } from '../../domain/types'
+import { ProfileChart } from './ProfileChart'
 
 interface RawImagesPanelProps {
   frames: Frame[]
   selectedId: string | null
   onSelect: (id: string) => void
   loading?: boolean
+  /** Flagged layers, for the chart's click targets and tooltips. */
+  flagged?: Map<number, AnomalySeverity>
+  /** Layers up to here are the ramp-up, shown but never flagged. */
+  transitionEndLayer?: number
 }
 
 function describe(frame: Frame): string {
@@ -13,15 +18,19 @@ function describe(frame: Frame): string {
 }
 
 /**
- * Process Insight's left panel: one chart per layer. Builds with histogram
- * images show the measured distribution; the rest show a chart drawn from the
- * per-layer means, and say so.
+ * Process Insight's left panel: the layer profile, with this layer marked.
+ *
+ * Clicking a point on the chart selects that layer, which is the quickest way
+ * to get from a flagged point on the trend to the layer behind it; the strip
+ * below steps layer by layer.
  */
 export function RawImagesPanel({
   frames,
   selectedId,
   onSelect,
   loading,
+  flagged,
+  transitionEndLayer = 0,
 }: RawImagesPanelProps) {
   const selected = frames.find((f) => f.id === selectedId) ?? frames[0]
 
@@ -35,19 +44,33 @@ export function RawImagesPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="viz-primary relative overflow-hidden rounded-sm bg-steel-950/50">
+      <div className="relative">
         {selected && (
-          <img
+          <ProfileChart
             src={selected.imageUrl}
             alt={describe(selected)}
-            className="absolute inset-0 h-full w-full object-contain"
-            decoding="async"
+            layerCount={frames.length}
+            activeLayer={selected.layer ?? null}
+            onSelectLayer={(layer) => onSelect(`L${layer}`)}
+            flagged={flagged}
+            describeLayer={(layer) => {
+              const frame = frames.find((f) => f.layer === layer)
+              const severity = flagged?.get(layer)
+              return [
+                `Layer ${layer}`,
+                frame?.zMm !== undefined ? `z ${frame.zMm.toFixed(2)} mm` : null,
+                layer <= transitionEndLayer ? 'ramp-up — not scored' : null,
+                severity ? `flagged (${severity})` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            }}
           />
         )}
         {selected?.measured === false && (
           <span
-            className="absolute right-2 top-2 rounded-sm border border-steel-600/50 bg-steel-950/85 px-2 py-0.5 text-xs text-steel-300"
-            title="No histogram images exist for this build — this chart is drawn from the per-layer mean temperatures"
+            className="pointer-events-none absolute right-2 top-2 rounded-sm border border-steel-600/50 bg-steel-950/85 px-2 py-0.5 text-xs text-steel-300"
+            title="The corpus stores one mean per layer, so this chart is drawn from the per-layer mean temperatures"
           >
             Chart from layer means
           </span>

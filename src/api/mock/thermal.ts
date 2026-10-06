@@ -122,6 +122,17 @@ export async function mockGetThermalStats(
     loggedTempC: 1780 + Math.round(Math.cos(position / 4) * 40),
     thresholdCount: 497,
     thresholdC: 1560,
+    thresholdSource: 'machine',
+    dimensions: {
+      lengthMm: 3.77,
+      widthMm: 3.47,
+      lengthPx: 126.8,
+      widthPx: 116.7,
+      angleDeg: 8.4,
+      aspect: 1.09,
+      lengthDeviationPct: -6.9,
+      widthDeviationPct: -12,
+    },
   }
 }
 

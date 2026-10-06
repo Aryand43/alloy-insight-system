@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ThermalFrameRef, ThermalFrameStats } from '../../domain/types'
+import type {
+  LayerFrameAnomalies,
+  ThermalFrameRef,
+  ThermalFrameStats,
+} from '../../domain/types'
 import { TEMP_MAX_C } from '../../domain/thermalColor'
 import { Button } from '../ui/Button'
 
@@ -12,8 +16,31 @@ interface MeltPoolImagesPanelProps {
   meltThresholdC: number
   /** Sensor ceiling; peaks at or above it are saturated. */
   tempMaxC?: number
+  /** Per-frame deviation for this layer, marked on the scrubber. */
+  frameAnomalies?: LayerFrameAnomalies | null
   loading?: boolean
   error?: string | null
+}
+
+/**
+ * An aspect ratio near 1 means the pool is round, and a round blob has no
+ * meaningful long axis — the computed angle then flips frame to frame on
+ * noise. Below this it is not shown.
+ */
+const ANGLE_MEANINGFUL_ASPECT = 1.15
+
+/** Signed deviation from the build's steady-state pool, coloured by direction. */
+function Deviation({ value }: { value: number }) {
+  const big = Math.abs(value) >= 10
+  return (
+    <span
+      className={big ? 'ml-1 text-signal-yellow' : 'ml-1 text-steel-400'}
+      title="Difference from the median pool measured across this build's steady-state layers"
+    >
+      {value >= 0 ? '+' : ''}
+      {value.toFixed(1)}%
+    </span>
+  )
 }
 
 /** Pixel counts get thousands separators; temperatures never do (1817 °C). */
@@ -23,7 +50,11 @@ function whole(n: number): string {
 
 /**
  * Right panel in Alloy Insight: the ~380 melt-pool frames captured within the
- * pinned layer, segmented at the machine's melt threshold.
+ * pinned layer, segmented at the melt threshold in force.
+ *
+ * The scrubber doubles as the layer's deviation track: frames the model
+ * flagged are ticked along it, so the stretch of the pass where the pool left
+ * the build's steady state can be scrubbed to directly.
  */
 export function MeltPoolImagesPanel({
   frames,
@@ -33,6 +64,7 @@ export function MeltPoolImagesPanel({
   stats,
   meltThresholdC,
   tempMaxC = TEMP_MAX_C,
+  frameAnomalies,
   loading,
   error,
 }: MeltPoolImagesPanelProps) {
@@ -120,15 +152,28 @@ export function MeltPoolImagesPanel({
         >
           ›
         </Button>
-        <input
-          type="range"
-          min={0}
-          max={Math.max(total - 1, 0)}
-          value={position}
-          onChange={(e) => onSeek(Number(e.target.value))}
-          className="h-1 flex-1 cursor-pointer accent-signal-yellow"
-          aria-label="Frame within layer"
-        />
+        <div className="relative flex-1">
+          <input
+            type="range"
+            min={0}
+            max={Math.max(total - 1, 0)}
+            value={position}
+            onChange={(e) => onSeek(Number(e.target.value))}
+            className="h-1 w-full cursor-pointer accent-signal-yellow"
+            aria-label="Frame within layer"
+          />
+          {/* Ticks sit under the thumb and ignore pointer events, so dragging
+              the scrubber still works across them. */}
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 -bottom-1 h-1.5">
+            {(frameAnomalies?.anomalies ?? []).map((a) => (
+              <span
+                key={a.position}
+                className="absolute h-1.5 w-0.5 rounded-full bg-signal-red"
+                style={{ left: `${total > 1 ? (a.position / (total - 1)) * 100 : 50}%` }}
+              />
+            ))}
+          </div>
+        </div>
         <span className="shrink-0 text-xs text-steel-400">
           Frame <span className="font-mono text-steel-200">{position + 1}</span> of{' '}
           <span className="font-mono text-steel-200">{total}</span>
@@ -145,9 +190,21 @@ export function MeltPoolImagesPanel({
         </span>
         <span className="text-steel-400">
           Threshold{' '}
-          <span className="font-mono text-steel-200">{meltThresholdC.toFixed(0)} °C</span> (machine
-          log)
+          <span className="font-mono text-steel-200">
+            {(stats?.thresholdC ?? meltThresholdC).toFixed(0)} °C
+          </span>{' '}
+          {stats?.thresholdSource === 'user' ? '(set in setup)' : '(machine log)'}
         </span>
+        {frameAnomalies && (
+          <span
+            className="text-steel-400"
+            title={frameAnomalies.note}
+          >
+            {frameAnomalies.anomalies.length
+              ? `${frameAnomalies.anomalies.length} of ${frameAnomalies.frameCount} frames deviate (${frameAnomalies.flaggedPct}%)`
+              : `All ${frameAnomalies.frameCount} frames within steady state`}
+          </span>
+        )}
       </div>
 
       {stats && (
@@ -183,6 +240,44 @@ export function MeltPoolImagesPanel({
               </span>
             </>
           )}
+        </div>
+      )}
+
+      {stats?.dimensions && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-400">
+          <span title="Measured end to end along the pool's long axis, which runs with the direction of travel">
+            Length{' '}
+            <span className="font-mono text-steel-200">
+              {stats.dimensions.lengthMm.toFixed(2)} mm
+            </span>
+            {stats.dimensions.lengthDeviationPct !== null && (
+              <Deviation value={stats.dimensions.lengthDeviationPct} />
+            )}
+          </span>
+          <span title="Measured across the bead, perpendicular to the long axis">
+            Width{' '}
+            <span className="font-mono text-steel-200">
+              {stats.dimensions.widthMm.toFixed(2)} mm
+            </span>
+            {stats.dimensions.widthDeviationPct !== null && (
+              <Deviation value={stats.dimensions.widthDeviationPct} />
+            )}
+          </span>
+          <span title="Length / width; 1 is round, higher is more elongated">
+            Aspect{' '}
+            <span className="font-mono text-steel-200">
+              {stats.dimensions.aspect.toFixed(2)}
+            </span>
+          </span>
+          {stats.dimensions.aspect >= ANGLE_MEANINGFUL_ASPECT && (
+            <span title="Orientation of the long axis in the camera image">
+              Axis{' '}
+              <span className="font-mono text-steel-200">
+                {stats.dimensions.angleDeg.toFixed(0)}°
+              </span>
+            </span>
+          )}
+          <span className="text-steel-500">vs this build&rsquo;s steady-state pool</span>
         </div>
       )}
     </div>

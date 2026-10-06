@@ -16,6 +16,9 @@ const CLASS_COLORS: Record<ColorClass, string> = {
 
 const CLASSES: ColorClass[] = ['green', 'red', 'blue']
 
+/** Cells across the wall; mirrors VOXEL_COLUMNS in the server's analysis service. */
+const COLUMNS = 12
+
 interface Dims {
   x: number
   y: number
@@ -130,21 +133,31 @@ export function ThreeColor3D({ data, loading }: ThreeColor3DProps) {
         </Canvas>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-300">
-        <span className="inline-flex items-center gap-1.5" title="Temperature and size both within their stable bands">
-          <span aria-hidden className="h-2 w-2 rounded-full bg-signal-green" /> Stable{' '}
+        <span
+          className="inline-flex items-center gap-1.5"
+          title="Scored and within this build's steady state"
+        >
+          <span aria-hidden className="h-2 w-2 rounded-full bg-signal-green" /> Within steady state{' '}
           <span className="font-mono text-steel-200">{pct('green')}%</span>
         </span>
-        <span className="inline-flex items-center gap-1.5" title="Running hot or oversized">
-          <span aria-hidden className="h-2 w-2 rounded-full bg-signal-red" /> Hotter or larger{' '}
+        <span
+          className="inline-flex items-center gap-1.5"
+          title="Flagged by the anomaly model; for builds with frame data, only the part of the pass that deviated"
+        >
+          <span aria-hidden className="h-2 w-2 rounded-full bg-signal-red" /> Flagged{' '}
           <span className="font-mono text-steel-200">{pct('red')}%</span>
         </span>
-        <span className="inline-flex items-center gap-1.5" title="Running cold or undersized">
-          <span aria-hidden className="h-2 w-2 rounded-full bg-signal-blue" /> Cooler or smaller{' '}
+        <span
+          className="inline-flex items-center gap-1.5"
+          title="Ramp-up from a cold plate — deviation is expected here, so these layers are not scored"
+        >
+          <span aria-hidden className="h-2 w-2 rounded-full bg-signal-blue" /> Ramp-up, not scored{' '}
           <span className="font-mono text-steel-200">{pct('blue')}%</span>
         </span>
       </div>
       <p className="text-xs text-steel-400">
-        One row per layer · from layer mean temperature and melt-pool size
+        One row per layer, {COLUMNS} cells along the wall. Where frame data exists, a flagged layer
+        is narrowed to the stretch of the pass the deviation was captured in.
       </p>
     </div>
   )

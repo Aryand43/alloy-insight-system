@@ -2,10 +2,12 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { BuildSummary } from '../../../src/domain/types.js'
 import { decodeBuildId, describeBuild, targetHeightMm } from '../buildId.js'
-import { readCouponQuality } from '../parsers/xlsx.js'
+import { readCouponQuality, readGomHeights } from '../parsers/xlsx.js'
 import {
   COUPON_QUALITY_XLSX,
   DMG_DIR,
+  GOM_DIR,
+  GOM_FILES,
   KIV_DIR,
   MEANSIZE_DIR,
   MEANTEMP_DIR,
@@ -64,6 +66,33 @@ async function loadQuality(): Promise<Map<string, 'best' | 'worst'>> {
   return map
 }
 
+/**
+ * Measured top-face deviation per build, from the GOM reports.
+ *
+ * The reports are organised by pass group and sample label rather than by
+ * build id: workbook `6010` plus sample `Z0.9R5` is build `60105609r5`. The
+ * key here is `<layerHeightMm>|<run>` within a pass group, which is enough to
+ * identify the build because a group never repeats an increment and run.
+ */
+async function loadGeometry(): Promise<Map<string, number>> {
+  const map = new Map<string, number>()
+  for (const file of GOM_FILES) {
+    const full = path.join(GOM_DIR, file)
+    if (!(await exists(full))) continue
+    // `GOM6004.xlsx` and `6010GOM.xlsx` — the group is the only 4-digit run.
+    const group = /(\d{4})/.exec(file)?.[1]
+    if (!group) continue
+    try {
+      for (const row of await readGomHeights(full)) {
+        map.set(`${group}|${row.layerHeightMm}|${row.run}`, row.heightMm)
+      }
+    } catch (err) {
+      console.warn(`[catalog] could not read ${file}: ${String(err)}`)
+    }
+  }
+  return map
+}
+
 /** Maps `60047207r2` -> the `20230309_1947_60047207r2` run folder, if present. */
 async function loadRunDirs(): Promise<Map<string, string>> {
   const map = new Map<string, string>()
@@ -82,7 +111,11 @@ async function loadRunDirs(): Promise<Map<string, string>> {
 
 async function build(): Promise<CatalogEntry[]> {
   const files = await fs.readdir(MEANTEMP_DIR)
-  const [quality, runDirs] = await Promise.all([loadQuality(), loadRunDirs()])
+  const [quality, runDirs, geometry] = await Promise.all([
+    loadQuality(),
+    loadRunDirs(),
+    loadGeometry(),
+  ])
 
   const entries: CatalogEntry[] = []
 
@@ -131,6 +164,11 @@ async function build(): Promise<CatalogEntry[]> {
       hasRawFrames,
       hasThermal,
       quality: quality.get(decoded.family) ?? null,
+      geometryHeightDeviationMm:
+        geometry.get(
+          // Pass group is the length and pass digits, e.g. `6010`.
+          `${decoded.lengthMm}${String(decoded.passes).padStart(2, '0')}|${decoded.layerHeightMm}|${decoded.run}`,
+        ) ?? null,
       meanTempFile: path.join(MEANTEMP_DIR, file),
       meanSizeFile,
       kivTempDir: hasKivTemp ? kivTempDir : null,

@@ -1,3 +1,5 @@
+import type { AnomalyReport } from '../../../src/domain/types.js'
+import { buildAnomalyReport } from './anomaly.js'
 import type { LayerPoint, LayerSeries } from './layers.js'
 
 const BG = '#0d1117'
@@ -12,6 +14,10 @@ const LEVEL_COLOR = {
   transition: '#e8b84a',
   alert: '#d64545',
 } as const
+
+/** Ramp-up shading — deliberately cool and quiet, so it reads as context. */
+const TRANSITION_FILL = '#2b3a52'
+const ANOMALY_COLOR = { watch: '#e8b84a', alert: '#d64545' } as const
 
 function esc(s: string): string {
   return s.replace(/[<>&"']/g, (c) =>
@@ -52,6 +58,7 @@ export function layerProfileSvg(
   series: LayerSeries,
   layer: number,
   kind: ChartKind = 'temp',
+  report: AnomalyReport = buildAnomalyReport(series),
 ): string {
   const W = 640
   const H = 420
@@ -111,6 +118,57 @@ export function layerProfileSvg(
   const bandTop = round(y(ref + band))
   const bandBottom = round(y(ref - band))
 
+  /*
+   * Ramp-up region. Shaded rather than hidden: the operator should see that
+   * the first layers were excluded from anomaly detection, and why.
+   */
+  const transitionEnd = report.transition.endLayer
+  const transition =
+    transitionEnd > 0 && transitionEnd < n
+      ? (() => {
+          const right = round(x(transitionEnd - 1))
+          const label =
+            right - L > 150
+              ? `<text x="${round(L + (right - L) / 2)}" y="${T + 20}" fill="${TEXT}" font-size="16" text-anchor="middle">transition · not scored</text>`
+              : ''
+          return `
+  <rect x="${L}" y="${T}" width="${round(right - L)}" height="${ph}" fill="${TRANSITION_FILL}" opacity="0.45"/>
+  <line x1="${right}" y1="${T}" x2="${right}" y2="${T + ph}" stroke="${AXIS}" stroke-width="1" stroke-dasharray="3 3"/>
+  ${label}`
+        })()
+      : ''
+
+  /*
+   * Flagged layers. Rings, not filled dots, so the profile line still reads
+   * through them where a run of layers is flagged.
+   */
+  const anomalyMarks = report.anomalies
+    .map((a) => {
+      const i = a.layer - 1
+      const value = values[i]
+      if (value === undefined) return ''
+      const colour = ANOMALY_COLOR[a.severity]
+      const cx = round(x(i))
+      const cy = round(y(value))
+      const r = a.severity === 'alert' ? 6 : 4
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colour}" stroke-width="2.5" opacity="0.95"/>`
+    })
+    .join('\n  ')
+
+  /* Onset of each run of flagged layers, which is the point worth naming. */
+  const onsetMarks = report.events
+    .map((e) => {
+      const i = e.onsetLayer - 1
+      const value = values[i]
+      if (value === undefined) return ''
+      const cx = round(x(i))
+      const colour = ANOMALY_COLOR[e.severity]
+      return `
+  <path d="M${cx} ${T + ph + 2} l-6 10 l12 0 z" fill="${colour}"/>
+  <text x="${cx}" y="${T - 6}" fill="${colour}" font-size="15" text-anchor="middle">L${e.onsetLayer}</text>`
+    })
+    .join('')
+
   const marker = point
     ? (() => {
         const mx = round(x(layer - 1))
@@ -137,11 +195,14 @@ export function layerProfileSvg(
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="IBM Plex Sans, system-ui, sans-serif">
   <rect width="${W}" height="${H}" fill="${BG}"/>
   <text x="${L}" y="30" fill="${TEXT_BRIGHT}" font-size="24">${esc(title)}</text>
-  <text x="${L}" y="56" fill="${TEXT}" font-size="17">${esc(series.buildId)} · ${n} layers · median ${ref.toFixed(decimals)} ${unit} · from layer means</text>
+  <text x="${L}" y="56" fill="${TEXT}" font-size="17">${esc(series.buildId)} · ${n} layers · median ${ref.toFixed(decimals)} ${unit}${report.anomalies.length ? ` · ${report.anomalies.length} flagged layer${report.anomalies.length === 1 ? '' : 's'}` : ' · no layers flagged'}</text>
+  ${transition}
   <rect x="${L}" y="${bandTop}" width="${pw}" height="${round(bandBottom - bandTop)}" fill="${LEVEL_COLOR.stable}" opacity="0.10"/>
   <line x1="${L}" y1="${round(y(ref))}" x2="${L + pw}" y2="${round(y(ref))}" stroke="${LEVEL_COLOR.stable}" stroke-width="1" stroke-dasharray="6 4" opacity="0.7"/>
   ${gridLines.join('\n  ')}
   <path d="${path}" fill="none" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/>
+  ${anomalyMarks}
+  ${onsetMarks}
   ${xTicks.join('\n  ')}
   <line x1="${L}" y1="${T + ph}" x2="${L + pw}" y2="${T + ph}" stroke="${AXIS}" stroke-width="1"/>
   <line x1="${L}" y1="${T}" x2="${L}" y2="${T + ph}" stroke="${AXIS}" stroke-width="1"/>

@@ -5,14 +5,18 @@ import { userMessage } from '../../api/errors'
 import { createSession } from '../../api/sessions'
 import { MATERIALS, MATERIALS_WITH_DATA, PROCESS_TYPES } from '../../domain/materials'
 import type { AnalysisMode, BuildSummary } from '../../domain/types'
-import { useSetupStore } from '../../store/sessionStore'
+import { MACHINE_MELT_THRESHOLD_C, useSetupStore } from '../../store/sessionStore'
 import { Button } from '../ui/Button'
 import { Field } from '../ui/Field'
 import { Select } from '../ui/Select'
 import { SegmentedControl } from '../ui/SegmentedControl'
 
-/** The machine's logged melt threshold — the value segmentation actually uses. */
-const MACHINE_MELT_THRESHOLD_C = 1560
+/**
+ * What the camera can measure, from its calibration table. A threshold outside
+ * this cannot be expressed in raw counts at all, so the server rejects it.
+ */
+const CAMERA_MIN_C = 980
+const CAMERA_MAX_C = 2008
 
 function QualityBadge({ build }: { build: BuildSummary }) {
   if (!build.quality) return null
@@ -101,6 +105,9 @@ export function SetupForm() {
   }, [visible, sampleId, setSampleId])
 
   const selected = builds.find((b) => b.id === sampleId) ?? null
+  const selectedMaterial = MATERIALS.find((m) => m.id === materialId) ?? null
+  const selectedMaterialLabel = selectedMaterial?.label ?? 'This alloy'
+  const materialMeltC = selectedMaterial?.defaultMeltTempC ?? null
   const busy = submitting !== null || loadingCatalog
   const thermalCount = builds.filter((b) => b.hasThermal).length
   const filtered = passFilter !== null || thermalOnly
@@ -115,8 +122,14 @@ export function SetupForm() {
   async function run(mode: AnalysisMode) {
     setError(null)
 
-    if (!Number.isFinite(meltingTempC) || meltingTempC <= 0) {
-      setTempError('Enter a valid temperature in °C.')
+    if (!Number.isFinite(meltingTempC)) {
+      setTempError('Enter a threshold in °C.')
+      return
+    }
+    if (meltingTempC < CAMERA_MIN_C || meltingTempC > CAMERA_MAX_C) {
+      setTempError(
+        `The camera measures ${CAMERA_MIN_C}–${CAMERA_MAX_C} °C; pick a threshold inside that range.`,
+      )
       return
     }
     setTempError(null)
@@ -198,6 +211,24 @@ export function SetupForm() {
           <Detail label="Increment" value={`${selected.layerHeightMm.toFixed(1)} mm`} />
           <Detail label="Built height" value={`${selected.targetHeightMm} mm`} />
           <Detail label="Passes" value={String(selected.passes)} />
+          {selected.geometryHeightDeviationMm !== null && (
+            <span
+              className="inline-flex items-baseline gap-1.5"
+              title="Mean deviation of the finished top face from nominal, measured off the machine by GOM. Negative means the wall came out short."
+            >
+              <span className="uppercase tracking-[0.08em] text-steel-400">Measured height</span>
+              <span
+                className={`font-mono ${
+                  Math.abs(selected.geometryHeightDeviationMm) >= 5
+                    ? 'text-signal-yellow'
+                    : 'text-steel-200'
+                }`}
+              >
+                {selected.geometryHeightDeviationMm >= 0 ? '+' : ''}
+                {selected.geometryHeightDeviationMm.toFixed(1)} mm
+              </span>
+            </span>
+          )}
           <QualityBadge build={selected} />
           <span
             className="ml-auto text-xs text-steel-400"
@@ -250,7 +281,7 @@ export function SetupForm() {
 
       <div className="flex flex-col gap-6 border-t border-steel-700/40 pt-6">
         <p className="text-xs font-medium uppercase tracking-[0.08em] text-steel-400">
-          Reference parameters
+          Detection parameters
         </p>
 
         <div className="grid gap-6 sm:grid-cols-2">
@@ -275,17 +306,24 @@ export function SetupForm() {
           </Field>
 
           <Field
-            label="Melting temperature"
+            label="Melt-pool threshold"
             htmlFor="melt-temp"
-            hint={`Reference only — segmentation uses the machine’s logged threshold (${MACHINE_MELT_THRESHOLD_C} °C).`}
+            hint={
+              meltingTempC === MACHINE_MELT_THRESHOLD_C
+                ? `Pixels hotter than this are counted as melt pool. ${MACHINE_MELT_THRESHOLD_C} °C is the machine’s own logged threshold${
+                    materialMeltC ? ` · ${selectedMaterialLabel} melts near ${materialMeltC} °C` : ''
+                  }.`
+                : `Your threshold, not the machine’s ${MACHINE_MELT_THRESHOLD_C} °C — segmentation and every melt-pool number will use ${meltingTempC} °C.`
+            }
             error={tempError ?? undefined}
           >
             <div className="relative">
               <input
                 id="melt-temp"
                 type="number"
-                min={1}
-                step={1}
+                min={CAMERA_MIN_C}
+                max={CAMERA_MAX_C}
+                step={10}
                 value={meltingTempC}
                 onChange={(e) => setMeltingTempC(Number(e.target.value))}
                 className="w-full rounded border border-steel-600/50 bg-steel-900/80 px-3 py-2.5 pr-12 font-mono text-sm text-steel-100 focus:border-signal-yellow/50 focus:outline-none focus:ring-1 focus:ring-signal-yellow/30"
@@ -294,6 +332,15 @@ export function SetupForm() {
                 °C
               </span>
             </div>
+            {meltingTempC !== MACHINE_MELT_THRESHOLD_C && (
+              <button
+                type="button"
+                onClick={() => setMeltingTempC(MACHINE_MELT_THRESHOLD_C)}
+                className="mt-1.5 self-start text-xs text-steel-400 underline decoration-dotted underline-offset-2 hover:text-steel-200"
+              >
+                Reset to the machine’s {MACHINE_MELT_THRESHOLD_C} °C
+              </button>
+            )}
           </Field>
         </div>
 
