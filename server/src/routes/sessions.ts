@@ -183,14 +183,19 @@ sessionsRouter.get('/sessions/:id/brief', async (req, res) => {
  */
 sessionsRouter.post('/sessions/:id/query', async (req, res) => {
   const { entry, session } = await resolveSession(req.params.id, thresholdsFrom(req))
-  const question = (req.body ?? {}).question
+  const { question, history } = req.body ?? {}
 
   if (typeof question !== 'string') {
     throw new HttpError('Request body must be { question: string }', 400)
   }
 
   try {
-    const body: QueryAnswer = await answerQuestion(entry, session.config, question)
+    const body: QueryAnswer = await answerQuestion(
+      entry,
+      session.config,
+      question,
+      history,
+    )
     res.json(body)
   } catch (err) {
     if (err instanceof QueryUnavailableError) {

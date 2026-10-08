@@ -280,6 +280,61 @@ export interface MeltPoolDimensions {
   widthDeviationPct: number | null
 }
 
+/* ------------------------------------------- melt-pool boundary physics -- */
+
+/** One point on the melt-pool boundary, with the quantities measured there. */
+export interface BoundaryPoint {
+  /** Position relative to the pool centroid, in mm. */
+  xMm: number
+  yMm: number
+  /**
+   * Thermal gradient: the temperature drop from this boundary pixel to the
+   * pixel one step outward along the boundary normal, over the pixel pitch.
+   * Signed — a few points on a noisy edge genuinely rise outward.
+   */
+  gradientCPerMm: number
+  /** Angle between the outward normal and the scan direction, degrees. */
+  thetaDeg: number
+  /**
+   * Solidification rate, V·|cos θ|, in mm/s. Only meaningful on the trailing
+   * edge, where the pool is freezing; it is null elsewhere.
+   */
+  solidificationMmPerS: number | null
+  /** True on the trailing half of the pool, behind the heat source. */
+  trailing: boolean
+}
+
+export interface MeltPoolPhysics {
+  layer: number
+  position: number
+  thresholdC: number
+  thresholdSource: 'machine' | 'user'
+  points: BoundaryPoint[]
+  /** Travel direction in the image, degrees, and the speed used for R. */
+  travel: {
+    headingDeg: number
+    /** Deposition speed measured from the machine log at this frame, mm/s. */
+    speedMmPerS: number
+    /** Whether the speed came from the log or fell back to the nominal. */
+    speedSource: 'measured' | 'nominal'
+  }
+  summary: {
+    boundaryPoints: number
+    trailingPoints: number
+    gradientMedianCPerMm: number
+    gradientP10CPerMm: number
+    gradientP90CPerMm: number
+    /** Share of boundary points whose temperature rises outward — edge noise. */
+    gradientNegativePct: number
+    solidificationMedianMmPerS: number
+    solidificationMaxMmPerS: number
+    /** G/R, which governs solidification morphology, in °C·s/mm². */
+    gOverR: number
+    /** G·R, the cooling rate, in °C/s. */
+    coolingRateCPerS: number
+  }
+}
+
 /* ----------------------------------------------------- anomaly detection -- */
 
 /**

@@ -2,58 +2,97 @@ import { useEffect, useMemo, useRef } from 'react'
 import type { Calibration, ThermalField } from '../../api/thermalField'
 import { TEMP_MAX_C, TEMP_MIN_C, celsiusToRgb } from '../../domain/thermalColor'
 
-/** Source window around the melt pool, in native camera pixels. */
-const WINDOW = 56
-/** On-screen magnification of that window. */
-const SCALE = 6
+/** Margin left around the melt pool, in native camera pixels. */
+const MARGIN = 8
+/** Upscale factor, and the smallest window worth showing. */
+const SCALE = 4
+const MIN_WINDOW = 24
 
 interface SuperResolutionPanelProps {
   field: ThermalField | null
   calibration: Calibration | null
+  /** Threshold the pool is bounded by — the operator's when they set one. */
+  thresholdC: number
   loading?: boolean
   error?: string | null
 }
 
 interface Window {
-  /** Temperatures in °C, row-major, WINDOW x WINDOW. */
+  /** Temperatures in °C, row-major. */
   temps: Float32Array
-  originRow: number
-  originCol: number
-  size: number
+  rows: number
+  cols: number
 }
 
-/** Centres a window on the hottest part of the frame. */
-function cropHotRegion(field: ThermalField, calibration: Calibration): Window {
+/**
+ * Crops to the whole melt pool: the bounding box of everything above the
+ * threshold, plus a margin so the boundary is not flush with the edge.
+ *
+ * Framing the pool rather than a fixed box around the hottest pixel is what
+ * makes the two canvases comparable frame to frame — the window follows the
+ * pool as it grows and shrinks, and the whole of it is always in view.
+ */
+function cropMeltPool(
+  field: ThermalField,
+  calibration: Calibration,
+  thresholdC: number,
+): Window {
   const { width, height, counts } = field
-  let hottest = -1
-  let hotIndex = 0
-  for (let i = 0; i < counts.length; i++) {
-    if (counts[i] > hottest) {
-      hottest = counts[i]
-      hotIndex = i
-    }
-  }
-  const size = Math.min(WINDOW, width, height)
-  const centreRow = Math.floor(hotIndex / width)
-  const centreCol = hotIndex % width
-  const clamp = (v: number, max: number) => Math.max(0, Math.min(v, max - size))
-  const originRow = clamp(centreRow - (size >> 1), height)
-  const originCol = clamp(centreCol - (size >> 1), width)
 
-  const temps = new Float32Array(size * size)
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      temps[r * size + c] =
-        calibration.celsius[counts[(originRow + r) * width + originCol + c]] ?? TEMP_MIN_C
+  let minRow = height
+  let maxRow = -1
+  let minCol = width
+  let maxCol = -1
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      const celsius = calibration.celsius[counts[r * width + c]] ?? TEMP_MIN_C
+      if (celsius < thresholdC) continue
+      if (r < minRow) minRow = r
+      if (r > maxRow) maxRow = r
+      if (c < minCol) minCol = c
+      if (c > maxCol) maxCol = c
     }
   }
-  return { temps, originRow, originCol, size }
+
+  // Nothing above the threshold: show the whole frame rather than nothing.
+  if (maxRow < 0) {
+    minRow = 0
+    minCol = 0
+    maxRow = height - 1
+    maxCol = width - 1
+  }
+
+  const grow = (lo: number, hi: number, limit: number) => {
+    let a = Math.max(0, lo - MARGIN)
+    let b = Math.min(limit - 1, hi + MARGIN)
+    // Keep the window usefully large when the pool is tiny.
+    const shortfall = MIN_WINDOW - (b - a + 1)
+    if (shortfall > 0) {
+      a = Math.max(0, a - Math.ceil(shortfall / 2))
+      b = Math.min(limit - 1, b + Math.ceil(shortfall / 2))
+    }
+    return [a, b] as const
+  }
+
+  const [r0, r1] = grow(minRow, maxRow, height)
+  const [c0, c1] = grow(minCol, maxCol, width)
+  const rows = r1 - r0 + 1
+  const cols = c1 - c0 + 1
+
+  const temps = new Float32Array(rows * cols)
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      temps[r * cols + c] =
+        calibration.celsius[counts[(r0 + r) * width + c0 + c]] ?? TEMP_MIN_C
+    }
+  }
+  return { temps, rows, cols }
 }
 
 function sample(w: Window, r: number, c: number): number {
-  const row = r < 0 ? 0 : r >= w.size ? w.size - 1 : r
-  const col = c < 0 ? 0 : c >= w.size ? w.size - 1 : c
-  return w.temps[row * w.size + col]
+  const row = r < 0 ? 0 : r >= w.rows ? w.rows - 1 : r
+  const col = c < 0 ? 0 : c >= w.cols ? w.cols - 1 : c
+  return w.temps[row * w.cols + col]
 }
 
 /** Catmull-Rom, the usual cubic kernel for image resampling. */
@@ -74,19 +113,20 @@ function paint(
   mode: 'nearest' | 'bicubic',
 ): void {
   if (!canvas) return
-  const out = w.size * SCALE
-  canvas.width = out
-  canvas.height = out
+  const outW = w.cols * SCALE
+  const outH = w.rows * SCALE
+  canvas.width = outW
+  canvas.height = outH
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const image = ctx.createImageData(out, out)
-  for (let y = 0; y < out; y++) {
+  const image = ctx.createImageData(outW, outH)
+  for (let y = 0; y < outH; y++) {
     // Sample at pixel centres, so the two views line up exactly.
     const sy = (y + 0.5) / SCALE - 0.5
     const r0 = Math.floor(sy)
     const fy = sy - r0
-    for (let x = 0; x < out; x++) {
+    for (let x = 0; x < outW; x++) {
       const sx = (x + 0.5) / SCALE - 0.5
       const c0 = Math.floor(sx)
       const fx = sx - c0
@@ -115,7 +155,7 @@ function paint(
       const [red, green, blue] = celsiusToRgb(
         Math.max(TEMP_MIN_C, Math.min(temp, TEMP_MAX_C)),
       )
-      const o = (y * out + x) * 4
+      const o = (y * outW + x) * 4
       image.data[o] = red
       image.data[o + 1] = green
       image.data[o + 2] = blue
@@ -126,7 +166,8 @@ function paint(
 }
 
 /**
- * Raw camera pixels beside an upscaled view of the same window.
+ * The whole melt pool in raw camera pixels, beside an upscaled view of the
+ * same window.
  *
  * This is **bicubic interpolation, not a super-resolution network**. It adds no
  * detail that was not in the frame — it only stops the melt-pool boundary
@@ -137,6 +178,7 @@ function paint(
 export function SuperResolutionPanel({
   field,
   calibration,
+  thresholdC,
   loading,
   error,
 }: SuperResolutionPanelProps) {
@@ -144,8 +186,8 @@ export function SuperResolutionPanel({
   const upRef = useRef<HTMLCanvasElement>(null)
 
   const window = useMemo(
-    () => (field && calibration ? cropHotRegion(field, calibration) : null),
-    [field, calibration],
+    () => (field && calibration ? cropMeltPool(field, calibration, thresholdC) : null),
+    [field, calibration, thresholdC],
   )
 
   useEffect(() => {
@@ -170,7 +212,8 @@ export function SuperResolutionPanel({
     )
   }
 
-  const nativeMm = (window.size * field.stride * 0.0297).toFixed(2)
+  const widthMm = (window.cols * field.stride * 0.0297).toFixed(2)
+  const heightMm = (window.rows * field.stride * 0.0297).toFixed(2)
 
   return (
     <div className="flex flex-col gap-2">
@@ -179,7 +222,7 @@ export function SuperResolutionPanel({
           {
             ref: rawRef,
             title: 'Raw',
-            note: `${window.size}×${window.size} px`,
+            note: `${window.cols}×${window.rows} px`,
           },
           {
             ref: upRef,
@@ -207,8 +250,12 @@ export function SuperResolutionPanel({
         ))}
       </div>
       <p className="text-xs text-steel-400">
-        Same window, centred on the hottest pixels ·{' '}
-        <span className="font-mono text-steel-200">{nativeMm} mm</span> across
+        The whole melt pool at{' '}
+        <span className="font-mono text-steel-200">{thresholdC.toFixed(0)} °C</span>, same window
+        in both ·{' '}
+        <span className="font-mono text-steel-200">
+          {widthMm} × {heightMm} mm
+        </span>
       </p>
       <p className="text-xs text-steel-400">
         Interpolated, not a trained super-resolution model — it adds no detail the camera did not

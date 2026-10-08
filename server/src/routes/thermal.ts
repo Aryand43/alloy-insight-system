@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import type {
   LayerFrameAnomalies,
+  MeltPoolPhysics,
   ThermalFrameStats,
   ThermalFrameWindow,
   ThermalLayerIndex,
@@ -10,6 +11,7 @@ import { calibration, celsiusToCount } from '../services/calibration.js'
 import { layerFrameAnomalies } from '../services/anomaly.js'
 import { frameReference, layerFeatures } from '../services/anomalyFeatures.js'
 import { getFrameIndex, type IndexedFrame, type IndexedLayer } from '../services/frameIndex.js'
+import { boundaryPhysics, travelAt } from '../services/meltPoolPhysics.js'
 import {
   loadFrame,
   poolReference,
@@ -218,6 +220,48 @@ thermalRouter.get(
         threshold,
         reference,
       )
+      res.json(body)
+    } catch (err) {
+      if (err instanceof CorruptFrameError) {
+        console.warn(`[thermal] unreadable frame ${err.detail}`)
+        throw new HttpError(err.message, 422)
+      }
+      throw err
+    }
+  },
+)
+
+/**
+ * Thermal gradient and solidification rate around the melt-pool boundary.
+ *
+ * Measured at the threshold in force, which is the operator's when they set
+ * one: the boundary that threshold draws is what is treated as the
+ * solidification front, so the choice moves both quantities.
+ */
+thermalRouter.get(
+  '/sessions/:id/thermal/layers/:layer/frames/:pos/physics',
+  async (req, res) => {
+    const { entry } = await resolveSession(req.params.id, thresholdsFrom(req))
+    requireThermal(entry)
+    const index = await getFrameIndex(entry)
+    const layer = pickLayer(index, req.params.layer)
+    const ref = pickFrame(layer, req.params.pos)
+    const threshold = chooseThreshold(
+      meltThresholdFrom(req),
+      index.meltThresholdC,
+      ref,
+    )
+
+    try {
+      const frame = await loadFrame(ref.file)
+      const body: MeltPoolPhysics = boundaryPhysics(
+        frame,
+        threshold,
+        travelAt(layer.frames, ref.position),
+        layer.layer,
+        ref.position,
+      )
+      res.setHeader('Cache-Control', 'public, max-age=3600')
       res.json(body)
     } catch (err) {
       if (err instanceof CorruptFrameError) {

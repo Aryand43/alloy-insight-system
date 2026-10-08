@@ -18,6 +18,7 @@ import { userMessage } from '../api/errors'
 import type {
   AnalysisSession,
   AnomalyReport,
+  MeltPoolPhysics,
   AnomalySeverity,
   BuildBrief,
   Frame,
@@ -41,6 +42,12 @@ import { useAnalysisUiStore } from '../store/sessionStore'
 import { ThermalProfilePanel } from '../components/analysis/ThermalProfilePanel'
 import { ThermalSurface3D } from '../components/analysis/ThermalSurface3D'
 import { SuperResolutionPanel } from '../components/analysis/SuperResolutionPanel'
+import {
+  MeltPoolBoundaryPanel,
+  SolidificationRatePanel,
+  ThermalGradientPanel,
+} from '../components/analysis/PhysicsPanels'
+import { getMeltPoolPhysics } from '../api/physics'
 import { AnomalyBanner } from '../components/analysis/AnomalyBanner'
 import { BuildBriefStrip } from '../components/analysis/BuildBriefStrip'
 import { QueryPanel } from '../components/analysis/QueryPanel'
@@ -94,6 +101,8 @@ export function AnalysisPage() {
   const [layerNotice, setLayerNotice] = useState<string | null>(null)
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [fieldFull, setFieldFull] = useState<ThermalField | null>(null)
+  const [physics, setPhysics] = useState<MeltPoolPhysics | null>(null)
+  const [physicsError, setPhysicsError] = useState<string | null>(null)
   const [thermalIndex, setThermalIndex] = useState<ThermalLayerIndex | null>(null)
   const [frameWindow, setFrameWindow] = useState<ThermalFrameWindow | null>(null)
   const [frameStats, setFrameStats] = useState<ThermalFrameStats | null>(null)
@@ -331,6 +340,34 @@ export function AnalysisPage() {
       cancelled = true
     }
   }, [sessionId, mode, thermalLayer])
+
+  /*
+   * Thermal gradient and solidification rate for the current frame. Measured
+   * on the boundary the threshold in force draws, so it refetches when the
+   * operator changes the threshold.
+   */
+  useEffect(() => {
+    if (!sessionId || mode !== 'alloy' || thermalLayer === null) return
+    let cancelled = false
+
+    getMeltPoolPhysics(sessionId, thermalLayer, thermalPos, thresholdC)
+      .then((p) => {
+        if (cancelled) return
+        setPhysics(p)
+        setPhysicsError(null)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setPhysics(null)
+        setPhysicsError(
+          userMessage(err, 'Couldn’t measure the melt-pool boundary in this frame.'),
+        )
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, mode, thermalLayer, thermalPos, thresholdC])
 
   // Calibration is memoised at module level; this just mirrors it into state.
   useEffect(() => {
@@ -622,31 +659,67 @@ export function AnalysisPage() {
               <ThresholdPanel overlay={overlay} loading={loadingOverlay} error={overlayError} />
             )}
           </Panel>
-          <Panel title={mode === 'alloy' ? 'Temperature Distribution' : 'Estimated Wall Geometry'}>
+          <Panel
+            title={mode === 'alloy' ? 'Super Resolution' : 'Estimated Wall Geometry'}
+          >
             {mode === 'alloy' ? (
-              <ThermalSurface3D
-                field={field}
+              <SuperResolutionPanel
+                field={fieldFull}
                 calibration={calibration}
-                meltThresholdC={thermalIndex?.meltThresholdC ?? 1560}
-                loading={loadingThermal || !field}
+                thresholdC={thresholdC ?? thermalIndex?.meltThresholdC ?? 1560}
+                loading={loadingThermal || !fieldFull}
                 error={fieldError}
               />
             ) : (
               <Reconstruction3D data={recon} loading={loading3d} />
             )}
           </Panel>
-          <Panel title={mode === 'alloy' ? 'Super Resolution' : 'Layer Stability Map'}>
+          <Panel title={mode === 'alloy' ? 'Melt Pool Boundary' : 'Layer Stability Map'}>
             {mode === 'alloy' ? (
-              <SuperResolutionPanel
-                field={fieldFull}
-                calibration={calibration}
-                loading={loadingThermal || !fieldFull}
-                error={fieldError}
+              <MeltPoolBoundaryPanel
+                physics={physics}
+                loading={loadingThermal || (!physics && !physicsError)}
+                error={physicsError}
               />
             ) : (
               <ThreeColor3D data={threeColor} loading={loading3d} />
             )}
           </Panel>
+
+          {/*
+            Thermal gradient and solidification rate sit side by side because
+            they are read together: G/R governs solidification morphology and
+            G·R the cooling rate, so the pair is the point, not either alone.
+          */}
+          {mode === 'alloy' && (
+            <>
+              <Panel title="Thermal Gradient">
+                <ThermalGradientPanel
+                  physics={physics}
+                  loading={loadingThermal || (!physics && !physicsError)}
+                  error={physicsError}
+                />
+              </Panel>
+              <Panel title="Solidification Rate">
+                <SolidificationRatePanel
+                  physics={physics}
+                  loading={loadingThermal || (!physics && !physicsError)}
+                  error={physicsError}
+                />
+              </Panel>
+              <div className="lg:col-span-2">
+                <Panel title="Temperature Distribution">
+                  <ThermalSurface3D
+                    field={field}
+                    calibration={calibration}
+                    meltThresholdC={thresholdC ?? thermalIndex?.meltThresholdC ?? 1560}
+                    loading={loadingThermal || !field}
+                    error={fieldError}
+                  />
+                </Panel>
+              </div>
+            </>
+          )}
         </div>
 
         <StatsStrip stats={stats} loading={loadingStats} />

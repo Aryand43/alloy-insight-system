@@ -32,14 +32,20 @@ export async function getLayerFrameAnomalies(
   )
 }
 
+export interface QueryTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 /** POST, so the question never lands in a URL or a browser history entry. */
 export async function askQuestion(
   sessionId: string,
   question: string,
+  history: QueryTurn[] = [],
 ): Promise<QueryAnswer> {
   if (isMockMode()) return mockAskQuestion(sessionId, question)
   return apiFetch<QueryAnswer>(`/sessions/${sessionId}/query`, {
     method: 'POST',
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   })
 }
