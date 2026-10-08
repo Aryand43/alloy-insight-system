@@ -74,9 +74,11 @@ export function MeltPoolBoundaryPanel(props: PhysicsPanelProps) {
 /**
  * Thermal gradient G around the boundary.
  *
- * One pixel outward along the normal, temperature difference over the pixel
- * pitch. A small share of points come back negative — the edge is noisy at
- * this scale — and that share is reported rather than clipped away.
+ * Sampled outward along the normal and fitted by least squares, which is the
+ * procedure Shubham specified. The window is stated on screen because the
+ * measured profile is not linear — the surroundings stay hot — so G at 0.09 mm
+ * is roughly double G at 0.36 mm. A number without its baseline would not be
+ * reproducible.
  */
 export function ThermalGradientPanel(props: PhysicsPanelProps) {
   return (
@@ -92,25 +94,31 @@ export function ThermalGradientPanel(props: PhysicsPanelProps) {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-400">
             <span title="Median across all boundary points">
               G median{' '}
-              <span className="font-mono text-steel-200">
+              <span className="readout text-steel-200">
                 {p.summary.gradientMedianCPerMm.toLocaleString('en-US')} °C/mm
               </span>
             </span>
             <span title="10th to 90th percentile across the boundary">
               range{' '}
-              <span className="font-mono text-steel-200">
+              <span className="readout text-steel-200">
                 {p.summary.gradientP10CPerMm.toLocaleString('en-US')}–
                 {p.summary.gradientP90CPerMm.toLocaleString('en-US')}
               </span>
             </span>
             <span title="Boundary points whose temperature rises outward — sensor noise at the pool edge, reported rather than hidden">
               rising outward{' '}
-              <span className="font-mono text-steel-200">{p.summary.gradientNegativePct}%</span>
+              <span className="readout text-steel-200">{p.summary.gradientNegativePct}%</span>
             </span>
           </div>
-          <p className="text-xs text-steel-400">
-            Temperature drop from each boundary pixel to one pixel outward along the normal, over
-            the <span className="font-mono text-steel-200">30 µm</span> pixel pitch.
+          <p className="text-xs leading-relaxed text-steel-400">
+            Least-squares fit of temperature over{' '}
+            <span className="readout text-steel-200">{p.summary.gradientSamples}</span> samples
+            stepping outward along the normal, a{' '}
+            <span className="readout text-steel-200">
+              {(p.summary.gradientWindowMm * 1000).toFixed(0)} µm
+            </span>{' '}
+            baseline. The profile is not linear — the surroundings stay hot — so a longer baseline
+            returns a smaller gradient.
           </p>
         </div>
       )}

@@ -43,6 +43,8 @@ export async function mockGetPhysics(
       gradientP10CPerMm: 520,
       gradientP90CPerMm: 1300,
       gradientNegativePct: 0,
+      gradientWindowMm: 0.089,
+      gradientSamples: 4,
       solidificationMedianMmPerS: 11.8,
       solidificationMaxMmPerS: speed,
       gOverR: 76,

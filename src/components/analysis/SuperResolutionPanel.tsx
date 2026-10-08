@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { Calibration, ThermalField } from '../../api/thermalField'
 import { TEMP_MAX_C, TEMP_MIN_C, celsiusToRgb } from '../../domain/thermalColor'
+import { SR_MODEL } from '../../domain/srModel'
+import { superResolve, type Grid } from '../../domain/superResolution'
 
 /** Margin left around the melt pool, in native camera pixels. */
 const MARGIN = 8
-/** Upscale factor, and the smallest window worth showing. */
-const SCALE = 4
+/** Upscale factor is the model's; the window has a floor so tiny pools stay readable. */
+const SCALE = SR_MODEL.scale
 const MIN_WINDOW = 24
 
 interface SuperResolutionPanelProps {
@@ -95,85 +97,57 @@ function sample(w: Window, r: number, c: number): number {
   return w.temps[row * w.cols + col]
 }
 
-/** Catmull-Rom, the usual cubic kernel for image resampling. */
-function cubic(a: number, b: number, c: number, d: number, t: number): number {
-  const t2 = t * t
-  const t3 = t2 * t
-  return (
-    b +
-    0.5 * t * (c - a) +
-    0.5 * t2 * (2 * a - 5 * b + 4 * c - d) +
-    0.5 * t3 * (-a + 3 * b - 3 * c + d)
-  )
-}
-
-function paint(
-  canvas: HTMLCanvasElement | null,
-  w: Window,
-  mode: 'nearest' | 'bicubic',
-): void {
+/**
+ * Paints a temperature grid through the thermal colour map.
+ *
+ * Reconstruction happens in °C and only the result is coloured: interpolating
+ * colours instead would bend values across the ramp's stops and invent
+ * temperatures that were never measured.
+ */
+function paintGrid(canvas: HTMLCanvasElement | null, grid: Grid): void {
   if (!canvas) return
-  const outW = w.cols * SCALE
-  const outH = w.rows * SCALE
-  canvas.width = outW
-  canvas.height = outH
+  canvas.width = grid.width
+  canvas.height = grid.height
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const image = ctx.createImageData(outW, outH)
-  for (let y = 0; y < outH; y++) {
-    // Sample at pixel centres, so the two views line up exactly.
-    const sy = (y + 0.5) / SCALE - 0.5
-    const r0 = Math.floor(sy)
-    const fy = sy - r0
-    for (let x = 0; x < outW; x++) {
-      const sx = (x + 0.5) / SCALE - 0.5
-      const c0 = Math.floor(sx)
-      const fx = sx - c0
-
-      let temp: number
-      if (mode === 'nearest') {
-        temp = sample(w, Math.round(sy), Math.round(sx))
-      } else {
-        // Interpolate temperature, then colour it — interpolating the colours
-        // instead would bend values across the ramp's stops.
-        const rows: number[] = []
-        for (let m = -1; m <= 2; m++) {
-          rows.push(
-            cubic(
-              sample(w, r0 + m, c0 - 1),
-              sample(w, r0 + m, c0),
-              sample(w, r0 + m, c0 + 1),
-              sample(w, r0 + m, c0 + 2),
-              fx,
-            ),
-          )
-        }
-        temp = cubic(rows[0], rows[1], rows[2], rows[3], fy)
-      }
-
-      const [red, green, blue] = celsiusToRgb(
-        Math.max(TEMP_MIN_C, Math.min(temp, TEMP_MAX_C)),
-      )
-      const o = (y * outW + x) * 4
-      image.data[o] = red
-      image.data[o + 1] = green
-      image.data[o + 2] = blue
-      image.data[o + 3] = 255
-    }
+  const image = ctx.createImageData(grid.width, grid.height)
+  for (let i = 0; i < grid.values.length; i++) {
+    const [red, green, blue] = celsiusToRgb(
+      Math.max(TEMP_MIN_C, Math.min(grid.values[i], TEMP_MAX_C)),
+    )
+    const o = i * 4
+    image.data[o] = red
+    image.data[o + 1] = green
+    image.data[o + 2] = blue
+    image.data[o + 3] = 255
   }
   ctx.putImageData(image, 0, 0)
 }
 
+/** Nearest-neighbour blow-up: the raw pixels, honestly blocky. */
+function nearestGrid(w: Window): Grid {
+  const width = w.cols * SCALE
+  const height = w.rows * SCALE
+  const values = new Float32Array(width * height)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      values[y * width + x] = sample(w, (y / SCALE) | 0, (x / SCALE) | 0)
+    }
+  }
+  return { values, width, height }
+}
+
 /**
- * The whole melt pool in raw camera pixels, beside an upscaled view of the
- * same window.
+ * The whole melt pool in raw camera pixels, beside the super-resolved view of
+ * the same window.
  *
- * This is **bicubic interpolation, not a super-resolution network**. It adds no
- * detail that was not in the frame — it only stops the melt-pool boundary
- * reading as a staircase at this magnification. The trained SR network is meant
- * to go here, and when it does the only thing that changes is how the right
- * canvas is filled: same crop, same colour map, same labels.
+ * The right canvas is a learned reconstruction, not a sharpening filter: a
+ * sub-pixel regressor trained self-supervised on this camera's own frames,
+ * which predicts the detail a 4x downscale destroys and adds it to a bicubic
+ * baseline. Measured on frames from a build it never saw, it is worth about
+ * +0.8 dB PSNR over bicubic — a real gain, and a modest one, because a thermal
+ * field this smooth has little high-frequency detail left to recover.
  */
 export function SuperResolutionPanel({
   field,
@@ -190,11 +164,24 @@ export function SuperResolutionPanel({
     [field, calibration, thresholdC],
   )
 
+  // Reconstruction is the expensive step, so it is memoised on the window
+  // rather than redone whenever the component happens to re-render.
+  const restored = useMemo(
+    () =>
+      window
+        ? superResolve(
+            { values: window.temps, width: window.cols, height: window.rows },
+            SR_MODEL,
+          )
+        : null,
+    [window],
+  )
+
   useEffect(() => {
-    if (!window) return
-    paint(rawRef.current, window, 'nearest')
-    paint(upRef.current, window, 'bicubic')
-  }, [window])
+    if (!window || !restored) return
+    paintGrid(rawRef.current, nearestGrid(window))
+    paintGrid(upRef.current, restored)
+  }, [window, restored])
 
   if (error) {
     return (
@@ -226,8 +213,8 @@ export function SuperResolutionPanel({
           },
           {
             ref: upRef,
-            title: `${SCALE}× upscaled`,
-            note: 'bicubic',
+            title: `Super resolution ${SCALE}×`,
+            note: `${window.cols * SCALE}×${window.rows * SCALE} px`,
           },
         ].map((pane) => (
           <div
@@ -258,8 +245,11 @@ export function SuperResolutionPanel({
         </span>
       </p>
       <p className="text-xs text-steel-400">
-        Interpolated, not a trained super-resolution model — it adds no detail the camera did not
-        capture. The SR network drops in here.
+        Reconstructed by a model trained on this camera&rsquo;s own frames ·{' '}
+        <span className="readout text-steel-200">
+          +{(SR_MODEL.meta.psnrModel - SR_MODEL.meta.psnrBicubic).toFixed(2)} dB
+        </span>{' '}
+        over bicubic on held-out builds
       </p>
     </div>
   )

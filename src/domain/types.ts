@@ -326,6 +326,12 @@ export interface MeltPoolPhysics {
     gradientP90CPerMm: number
     /** Share of boundary points whose temperature rises outward — edge noise. */
     gradientNegativePct: number
+    /**
+     * Baseline the gradient was fitted over, in mm. The measured profile is
+     * not linear, so G is only meaningful alongside the window it came from.
+     */
+    gradientWindowMm: number
+    gradientSamples: number
     solidificationMedianMmPerS: number
     solidificationMaxMmPerS: number
     /** G/R, which governs solidification morphology, in °C·s/mm². */

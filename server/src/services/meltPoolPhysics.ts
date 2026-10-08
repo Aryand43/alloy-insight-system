@@ -42,6 +42,31 @@ const BLUR = [1, 2, 1, 2, 4, 2, 1, 2, 1].map((v) => v / 16)
  */
 const BLUR_PASSES = 12
 
+/**
+ * Pixels sampled outward along the normal when fitting the gradient.
+ *
+ * Fitted over several samples rather than taken as a single step, because one
+ * pixel of difference is one pixel of sensor noise. But the window has to stay
+ * short, because the measured profile is not linear. Averaged over the
+ * boundary of five frames, the mean temperature outward from the melt pool
+ * falls like this:
+ *
+ *   distance   0.03   0.06   0.09   0.15   0.18   0.30   0.36 mm
+ *   slope       837    581    426    341    297    186    156 °C/mm
+ *
+ * So a straight-line fit returns roughly half as much gradient at 0.36 mm as
+ * at 0.03 mm — the surroundings stay hot rather than falling away to ambient,
+ * exactly as Desmond expected. There is no linear regime to fit, so the number
+ * reported is the gradient *at the front*: four samples, a ~90 um baseline,
+ * long enough to average the noise down and short enough to stay local.
+ *
+ * This is the one knob that changes G, so the window travels with the payload
+ * and is stated on screen.
+ */
+const GRADIENT_SAMPLES = 4
+/** A fit needs at least this many in-frame samples to be reported. */
+const GRADIENT_MIN_SAMPLES = 3
+
 function smoothMask(mask: Uint8Array, width: number, height: number): Float32Array {
   let current = Float32Array.from(mask)
   let next = new Float32Array(width * height)
@@ -126,6 +151,89 @@ export function travelAt(frames: IndexedFrame[], index: number): TravelVector {
   }
 }
 
+/** Bilinear sample of the temperature field at a sub-pixel position. */
+function sampleCelsius(
+  data: ArrayLike<number>,
+  width: number,
+  height: number,
+  row: number,
+  col: number,
+): number | null {
+  if (row < 0 || col < 0 || row > height - 1 || col > width - 1) return null
+  const r0 = Math.floor(row)
+  const c0 = Math.floor(col)
+  const r1 = Math.min(r0 + 1, height - 1)
+  const c1 = Math.min(c0 + 1, width - 1)
+  const fr = row - r0
+  const fc = col - c0
+
+  const t00 = countToCelsius(data[r0 * width + c0])
+  const t01 = countToCelsius(data[r0 * width + c1])
+  const t10 = countToCelsius(data[r1 * width + c0])
+  const t11 = countToCelsius(data[r1 * width + c1])
+
+  return (
+    t00 * (1 - fr) * (1 - fc) +
+    t01 * (1 - fr) * fc +
+    t10 * fr * (1 - fc) +
+    t11 * fr * fc
+  )
+}
+
+/**
+ * Thermal gradient at one boundary point, in °C/mm.
+ *
+ * Walks outward along the normal sampling the temperature at each pixel step,
+ * then fits a straight line to T(n) by least squares and returns its slope.
+ * Positive means the temperature falls outward, which is the physical case;
+ * the sign is kept rather than taken as an absolute so that the share of
+ * points behaving otherwise stays visible as the noise measure it is.
+ *
+ * The ray is sampled bilinearly because the normal is rarely axis-aligned —
+ * rounding each step to the nearest pixel would quantise the direction and
+ * reintroduce the staircase the smoothed normal exists to avoid.
+ */
+function fitGradient(
+  data: ArrayLike<number>,
+  width: number,
+  height: number,
+  row: number,
+  col: number,
+  normalRow: number,
+  normalCol: number,
+): number | null {
+  let n = 0
+  let sumX = 0
+  let sumY = 0
+  let sumXX = 0
+  let sumXY = 0
+
+  for (let step = 0; step < GRADIENT_SAMPLES; step++) {
+    const celsius = sampleCelsius(
+      data,
+      width,
+      height,
+      row + normalRow * step,
+      col + normalCol * step,
+    )
+    if (celsius === null) break
+    // Distance from the boundary in mm, which is what the slope is per.
+    const distance = step * PITCH_MM
+    n += 1
+    sumX += distance
+    sumY += celsius
+    sumXX += distance * distance
+    sumXY += distance * celsius
+  }
+
+  if (n < GRADIENT_MIN_SAMPLES) return null
+  const denominator = n * sumXX - sumX * sumX
+  if (Math.abs(denominator) < 1e-12) return null
+  // Negated: the fit's slope is dT/dn, and a falling temperature is a positive
+  // gradient by the convention the panel reports.
+  return -(n * sumXY - sumX * sumY) / denominator
+}
+
 export function boundaryPhysics(
   frame: ThermalFrame,
   threshold: ThresholdChoice,
@@ -180,13 +288,8 @@ export function boundaryPhysics(
         normalR /= length
         normalC /= length
 
-        // One pixel outward, which is what the gradient is measured over.
-        const outR = Math.round(r + normalR)
-        const outC = Math.round(c + normalC)
-        if (outR < 0 || outR >= height || outC < 0 || outC >= width) continue
-
-        const gradient =
-          (countToCelsius(data[i]) - countToCelsius(data[outR * width + outC])) / PITCH_MM
+        const gradient = fitGradient(data, width, height, r, c, normalR, normalC)
+        if (gradient === null) continue
 
         // θ between the outward normal and travel. Image y is inverted, which
         // travelAt has already accounted for.
@@ -233,6 +336,8 @@ export function boundaryPhysics(
       gradientNegativePct: gradients.length
         ? round((100 * gradients.filter((g) => g < 0).length) / gradients.length, 1)
         : 0,
+      gradientWindowMm: round((GRADIENT_SAMPLES - 1) * PITCH_MM, 3),
+      gradientSamples: GRADIENT_SAMPLES,
       solidificationMedianMmPerS: round(medianR, 2),
       solidificationMaxMmPerS: round(sortedR[sortedR.length - 1] ?? 0, 2),
       // Both ratios are taken at the medians rather than averaged pointwise,
