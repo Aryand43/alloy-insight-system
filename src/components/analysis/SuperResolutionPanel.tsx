@@ -217,7 +217,7 @@ export function SuperResolutionPanel({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="viz-secondary grid grid-cols-2 gap-2">
+      <div className="viz-secondary grid grid-cols-2 gap-2.5">
         {[
           {
             ref: rawRef,
@@ -232,7 +232,7 @@ export function SuperResolutionPanel({
         ].map((pane) => (
           <div
             key={pane.title}
-            className="relative overflow-hidden rounded-sm bg-steel-950/50"
+            className="surface-inset relative overflow-hidden rounded-sm"
           >
             <canvas
               ref={pane.ref}
@@ -240,10 +240,10 @@ export function SuperResolutionPanel({
               style={{ imageRendering: 'pixelated' }}
               aria-label={`${pane.title} melt-pool window`}
             />
-            <span className="absolute left-1.5 top-1.5 rounded-sm bg-steel-950/80 px-1.5 py-0.5 text-xs text-steel-200">
+            <span className="absolute left-1.5 top-1.5 rounded-sm border border-[color:var(--border-hairline)] bg-steel-950/85 px-1.5 py-0.5 text-xs text-steel-200">
               {pane.title}
             </span>
-            <span className="absolute bottom-1.5 right-1.5 rounded-sm bg-steel-950/80 px-1.5 py-0.5 text-xs text-steel-400">
+            <span className="absolute bottom-1.5 right-1.5 rounded-sm bg-steel-950/80 px-1.5 py-0.5 font-mono text-xs text-steel-400">
               {pane.note}
             </span>
           </div>

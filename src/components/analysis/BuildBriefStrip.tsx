@@ -17,11 +17,9 @@ function Item({
   mono?: boolean
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5" title={title}>
-      <span className="text-xs uppercase tracking-[0.08em] text-steel-400">{label}</span>
-      <span className={`truncate text-xs ${mono ? 'font-mono text-steel-100' : 'text-steel-100'}`}>
-        {value}
-      </span>
+    <div className="flex min-w-0 flex-col gap-1" title={title}>
+      <span className="eyebrow">{label}</span>
+      <span className={`truncate text-xs ${mono ? 'readout' : 'text-steel-100'}`}>{value}</span>
     </div>
   )
 }
@@ -37,15 +35,15 @@ function Item({
 export function BuildBriefStrip({ brief, loading }: BuildBriefStripProps) {
   if (loading || !brief) {
     return (
-      <div className="rounded-sm border border-steel-700/30 bg-steel-900/30 px-3 py-2 text-xs text-steel-400">
+      <div className="surface-sunken rounded-sm px-3 py-2.5 text-xs text-steel-400">
         {loading ? 'Reading build record…' : 'No build record available.'}
       </div>
     )
   }
 
   return (
-    <div className="rounded-sm border border-steel-700/30 bg-steel-900/30 px-3 py-2.5">
-      <div className="grid grid-cols-2 gap-x-5 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="surface-sunken rounded-sm px-3 py-3">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
         <Item label="Machine" value={brief.machine} title="From the machine documentation; the run header logs only a serial" />
         <Item label="Material" value={brief.material} />
         <Item label="Process" value={brief.process} />
@@ -68,11 +66,11 @@ export function BuildBriefStrip({ brief, loading }: BuildBriefStripProps) {
         />
       </div>
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-steel-700/30 pt-2 text-xs">
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-[color:var(--border-hairline)] pt-2.5 text-xs">
         <span className="text-steel-300">{brief.geometry}</span>
         {brief.keyParameters.map((p) => (
-          <span key={p.label} className="text-steel-400">
-            {p.label} <span className="font-mono text-steel-200">{p.value}</span>
+          <span key={p.label} className="text-steel-500">
+            {p.label} <span className="readout text-steel-200">{p.value}</span>
           </span>
         ))}
       </div>

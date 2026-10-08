@@ -151,7 +151,7 @@ export function ThermalSurface3D({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="viz-secondary overflow-hidden rounded-sm bg-steel-950/50">
+      <div className="surface-inset viz-secondary overflow-hidden rounded-sm">
         <Canvas
           camera={{ position: [2.8, 2.2, 3.0], fov: 40 }}
           dpr={[1, 1.5]}

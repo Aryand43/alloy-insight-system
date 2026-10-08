@@ -14,9 +14,9 @@ export function Select({ options, className = '', ...rest }: SelectProps) {
   return (
     <select
       className={[
-        'w-full appearance-none rounded border border-steel-600/50 bg-steel-900/80 px-3 py-2.5',
-        'text-sm text-steel-100 font-mono',
-        'focus:border-signal-yellow/50 focus:outline-none focus:ring-1 focus:ring-signal-yellow/30',
+        'ctl select-chevron w-full appearance-none px-3 py-2',
+        'font-mono text-sm text-steel-100',
+        'disabled:opacity-45',
         className,
       ].join(' ')}
       {...rest}

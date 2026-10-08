@@ -10,18 +10,18 @@ interface FieldProps {
 
 export function Field({ label, htmlFor, hint, error, children }: FieldProps) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        htmlFor={htmlFor}
-        className="text-xs font-medium uppercase tracking-[0.08em] text-steel-400"
-      >
+    <div className="flex flex-col gap-2">
+      <label htmlFor={htmlFor} className="eyebrow">
         {label}
       </label>
       {children}
       {hint && !error && (
-        <p className="text-xs text-steel-400 leading-relaxed">{hint}</p>
+        <p className="text-xs leading-relaxed text-steel-400">{hint}</p>
       )}
-      {error && <p className="text-xs text-signal-red">{error}</p>}
+      {/* Errors sit in the same slot as the hint, so nothing shifts when one replaces the other. */}
+      {error && (
+        <p className="text-xs leading-relaxed text-signal-red-text">{error}</p>
+      )}
     </div>
   )
 }

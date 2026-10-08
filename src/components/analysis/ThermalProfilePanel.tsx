@@ -84,7 +84,7 @@ export function ThermalProfilePanel({
 
       <div className="flex flex-col gap-1.5">
         <div
-          className="flex items-end gap-1 overflow-x-auto pb-0.5"
+          className="flex min-w-0 items-end gap-1 overflow-x-auto pb-1"
           role="group"
           aria-label="Layers"
         >
@@ -110,7 +110,7 @@ export function ThermalProfilePanel({
                 ]
                   .filter(Boolean)
                   .join(' · ')}
-                className="flex min-w-3 shrink-0 flex-col items-center gap-1"
+                className="focus-ring flex min-w-3 shrink-0 flex-col items-center gap-1"
               >
                 <span
                   className={[
@@ -121,7 +121,7 @@ export function ThermalProfilePanel({
                         ? 'bg-signal-yellow'
                         : LEVEL_BAR[l.level],
                     active
-                      ? 'h-10 opacity-100 ring-2 ring-steel-50'
+                      ? 'h-10 opacity-100 ring-2 ring-accent-300'
                       : severity
                         ? 'h-9 opacity-95 hover:opacity-100'
                         : rampUp

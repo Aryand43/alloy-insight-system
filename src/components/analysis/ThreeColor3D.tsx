@@ -112,7 +112,7 @@ export function ThreeColor3D({ data, loading }: ThreeColor3DProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="viz-secondary relative overflow-hidden rounded-sm bg-steel-950/50">
+      <div className="surface-inset viz-secondary relative overflow-hidden rounded-sm">
         <Canvas
           camera={{ position: [3.4, 2.6, 3.4], fov: 40 }}
           dpr={[1, 1.5]}

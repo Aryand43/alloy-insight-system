@@ -550,7 +550,7 @@ export function AnalysisPage() {
     return (
       <AppShell compact trailing={trailing}>
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6">
-          <p className="max-w-md text-center text-signal-red-text">{error}</p>
+          <p className="max-w-md text-center text-sm leading-relaxed text-signal-red-text">{error}</p>
           <Link to="/">
             <Button variant="secondary">Back to setup</Button>
           </Link>
@@ -561,14 +561,14 @@ export function AnalysisPage() {
 
   return (
     <AppShell compact trailing={trailing}>
-      <div className="flex flex-1 flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4">
+      <div className="flex flex-1 flex-col gap-3 px-3 py-3 sm:gap-3.5 sm:px-4 sm:py-4">
         {/* Config summary */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-steel-700/30 pb-3 text-xs">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[color:var(--border-hairline)] pb-3 text-xs">
           {loadingSession || !session ? (
             <span className="text-steel-400">Loading analysis…</span>
           ) : (
             <>
-              <span className="rounded-sm border border-steel-600/60 bg-steel-800/70 px-2 py-0.5 text-xs font-medium text-steel-50">
+              <span className="rounded-sm border border-accent-600/50 bg-accent-500/12 px-2 py-0.5 text-xs font-semibold tracking-tight text-accent-300">
                 {mode === 'alloy' ? 'Alloy Insight' : 'Process Insight'}
               </span>
               <SummaryItem
@@ -592,13 +592,13 @@ export function AnalysisPage() {
         </div>
 
         {layerNotice && (
-          <p className="rounded-sm border border-steel-600/50 bg-steel-800/50 px-3 py-2 text-xs text-steel-200">
+          <p className="status-rule surface-sunken rounded-sm border-l-accent-500 px-3 py-2 text-xs leading-relaxed text-steel-200">
             {layerNotice}
           </p>
         )}
 
         {switchError && (
-          <p className="rounded-sm border border-signal-red/40 bg-signal-red/10 px-3 py-2 text-xs text-signal-red-text">
+          <p className="status-rule rounded-sm border border-[color:var(--border-hairline)] border-l-signal-red bg-signal-red/8 px-3 py-2 text-xs text-signal-red-text">
             {switchError}
           </p>
         )}
@@ -616,7 +616,7 @@ export function AnalysisPage() {
 
         {/* 2×2 viz grid */}
         {/* Row heights come from the panels' viz-primary / viz-secondary sizes. */}
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-3 sm:gap-3.5 lg:grid-cols-2">
           <Panel title="Layer Temperature Profile">
             {mode === 'alloy' ? (
               <ThermalProfilePanel
@@ -745,9 +745,9 @@ function SummaryItem({
 }) {
   return (
     <span className="inline-flex items-baseline gap-1.5" title={title}>
-      <span className="uppercase tracking-[0.08em] text-steel-400">{label}</span>
-      <span className={mono ? 'font-mono text-steel-100' : 'text-steel-100'}>{value}</span>
-      {note && <span className="text-steel-400">{note}</span>}
+      <span className="eyebrow">{label}</span>
+      <span className={mono ? 'readout' : 'text-steel-100'}>{value}</span>
+      {note && <span className="text-steel-500">{note}</span>}
     </span>
   )
 }

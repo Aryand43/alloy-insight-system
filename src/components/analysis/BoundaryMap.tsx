@@ -86,7 +86,7 @@ export function BoundaryMap({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className={`${height} relative overflow-hidden rounded-sm bg-steel-950/60`}>
+      <div className={`surface-inset ${height} relative overflow-hidden rounded-sm`}>
         <svg
           viewBox={`${view.minX} ${view.minY} ${width} ${depth}`}
           className="absolute inset-0 h-full w-full"
@@ -140,17 +140,17 @@ export function BoundaryMap({
             travel
           </text>
         </svg>
-        <span className="absolute bottom-1.5 right-2 rounded-sm bg-steel-950/80 px-1.5 py-0.5 text-xs text-steel-400">
+        <span className="absolute bottom-1.5 right-2 rounded-sm bg-steel-950/80 px-1.5 py-0.5 font-mono text-xs text-steel-400">
           {width.toFixed(1)} × {depth.toFixed(1)} mm
         </span>
       </div>
 
       {metric !== 'none' && (
         <div className="flex items-center gap-2 text-xs text-steel-400">
-          <span className="font-mono text-steel-200">{Math.round(view.lo)}</span>
+          <span className="readout text-steel-200">{Math.round(view.lo)}</span>
           <span
             aria-hidden
-            className="h-2 flex-1 rounded-sm"
+            className="h-1.5 flex-1 rounded-sm ring-1 ring-inset ring-[color:var(--border-hairline)]"
             style={{ background: metricGradientCss() }}
           />
           <span className="font-mono text-steel-200">{Math.round(view.hi)}</span>

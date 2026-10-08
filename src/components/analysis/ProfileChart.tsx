@@ -48,7 +48,7 @@ export function ProfileChart({
     layerCount > 1 ? (xFraction(1, layerCount) - xFraction(0, layerCount)) / 2 : 0.5
 
   return (
-    <div className="viz-primary relative overflow-hidden rounded-sm bg-steel-950/50">
+    <div className="surface-inset viz-primary relative overflow-hidden rounded-sm">
       <img
         src={src}
         alt={alt}

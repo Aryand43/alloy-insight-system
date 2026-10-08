@@ -4,19 +4,36 @@
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  --color-steel-950: #0d1117;
-  --color-steel-900: #141a22;
-  --color-steel-850: #1a222c;
-  --color-steel-800: #243040;
-  --color-steel-700: #354556;
-  --color-steel-600: #4a5d72;
-  --color-steel-500: #6b7f94;
+  /*
+   * Foundation: near-black graphite through to slate, with a cool navy cast.
+   * 950 is the page, 900/850 are surfaces, 800-600 are borders and controls,
+   * 500-50 is the text ramp.
+   */
+  --color-steel-950: #0a0e14;
+  --color-steel-900: #111821;
+  --color-steel-850: #16202b;
+  --color-steel-800: #1f2b38;
+  --color-steel-700: #2d3d4e;
+  --color-steel-600: #425568;
+  --color-steel-500: #64788d;
   --color-steel-400: #8a9aab;
   --color-steel-300: #a8b5c4;
   --color-steel-200: #c5d0db;
   --color-steel-100: #e2e8ef;
-  --color-steel-50: #f0f3f7;
+  --color-steel-50: #f2f5f9;
 
+  /*
+   * Accent: teal for system activity, selection and primary actions.
+   * Deliberately cooler and darker than the cyan the melt-pool contour is
+   * drawn in, so interface chrome never reads as measured data.
+   */
+  --color-accent-700: #176b78;
+  --color-accent-600: #1f8c9c;
+  --color-accent-500: #29a8ba;
+  --color-accent-400: #45c3d4;
+  --color-accent-300: #7adbe7;
+
+  /* Status. Meaning is fixed: green stable, amber transition, red alert. */
   --color-signal-red: #d64545;
   --color-signal-blue: #3d7ab5;
   --color-signal-green: #3d9a6a;
@@ -26,10 +43,27 @@
   --color-signal-red-text: #ef8a8a;
   /* Melt-pool contour drawn into thermal frames (server BOUNDARY_RGB). */
   --color-melt-boundary: #22e7ee;
+
+  /* Crisp corners throughout — instrumentation, not consumer software. */
+  --radius-sm: 3px;
+  --radius-md: 4px;
 }
 
 :root {
   color-scheme: dark;
+
+  /* One elevation ladder, so panels and controls stay in the same system. */
+  --elevation-hairline: inset 0 1px 0 rgba(226, 232, 239, 0.04);
+  --elevation-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
+  --elevation-control: inset 0 1px 0 rgba(226, 232, 239, 0.03);
+
+  /* Borders, in one place: hairline for structure, strong for controls. */
+  --border-hairline: rgba(138, 154, 171, 0.13);
+  --border-control: rgba(138, 154, 171, 0.22);
+  --border-control-hover: rgba(138, 154, 171, 0.38);
+
+  /* Control geometry. */
+  --control-height: 2.25rem;
 }
 
 html,
@@ -44,15 +78,28 @@ body {
   background: var(--color-steel-950);
   color: var(--color-steel-100);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv05' 1;
+}
+
+/*
+ * Numerals line up column to column: readouts change as frames are scrubbed,
+ * and proportional digits make the whole row jitter.
+ */
+.font-mono,
+input[type='number'],
+table {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 /* Industrial atmosphere — cool gradient + fine grid + noise */
 .app-atmosphere {
   background-color: var(--color-steel-950);
   background-image:
-    radial-gradient(ellipse 120% 80% at 10% 0%, rgba(61, 122, 181, 0.08), transparent 50%),
-    radial-gradient(ellipse 90% 60% at 90% 20%, rgba(232, 184, 74, 0.04), transparent 45%),
-    linear-gradient(180deg, #141a22 0%, #0d1117 100%);
+    radial-gradient(ellipse 120% 80% at 10% 0%, rgba(41, 168, 186, 0.07), transparent 52%),
+    radial-gradient(ellipse 90% 60% at 92% 10%, rgba(61, 122, 181, 0.05), transparent 48%),
+    linear-gradient(180deg, #121a24 0%, #0a0e14 60%);
   position: relative;
 }
 
@@ -62,10 +109,10 @@ body {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(138, 154, 171, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(138, 154, 171, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(180deg, black 0%, transparent 85%);
+    linear-gradient(rgba(138, 154, 171, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 154, 171, 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(180deg, black 0%, transparent 80%);
 }
 
 .app-atmosphere::after {
@@ -73,18 +120,100 @@ body {
   pointer-events: none;
   position: absolute;
   inset: 0;
-  opacity: 0.035;
+  opacity: 0.03;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* ----------------------------------------------------------- surfaces -- */
+
 .panel-surface {
-  background: linear-gradient(
-    160deg,
-    rgba(36, 48, 64, 0.55) 0%,
-    rgba(20, 26, 34, 0.75) 100%
-  );
-  border: 1px solid rgba(138, 154, 171, 0.14);
+  background:
+    linear-gradient(180deg, rgba(31, 43, 56, 0.5) 0%, rgba(17, 24, 33, 0.82) 42%);
+  border: 1px solid var(--border-hairline);
+  box-shadow: var(--elevation-panel), var(--elevation-hairline);
 }
+
+/** Header strip of a panel — one level darker than the panel body. */
+.panel-head {
+  background: linear-gradient(180deg, rgba(10, 14, 20, 0.5), rgba(10, 14, 20, 0.18));
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+/** A well for charts, images and 3D canvases: recessed, not raised. */
+.surface-inset {
+  background: rgba(7, 10, 15, 0.62);
+  border: 1px solid rgba(138, 154, 171, 0.08);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+/** Secondary information bands — brief, stats, assistant. */
+.surface-sunken {
+  background: rgba(17, 24, 33, 0.55);
+  border: 1px solid var(--border-hairline);
+}
+
+/* ----------------------------------------------------------- controls -- */
+
+/** Shared geometry for inputs, selects and buttons. */
+.ctl {
+  min-height: var(--control-height);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-control);
+  background: rgba(10, 14, 20, 0.6);
+  color: var(--color-steel-100);
+  box-shadow: var(--elevation-control);
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.ctl:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: var(--border-control-hover);
+}
+
+.ctl:focus-visible,
+.ctl:focus {
+  outline: none;
+  border-color: var(--color-accent-500);
+  box-shadow: 0 0 0 3px rgba(41, 168, 186, 0.22);
+}
+
+/** One focus treatment everywhere, including on elements without .ctl. */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-accent-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/** Native select loses its chevron under appearance-none; this restores one. */
+.select-chevron {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%238a9aab' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+}
+
+/* ------------------------------------------------------- typography -- */
+
+/** Micro-label above a value or section. */
+.eyebrow {
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-steel-400);
+}
+
+/** A measured number: mono, aligned, slightly brighter than its label. */
+.readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-steel-100);
+}
+
+/* ---------------------------------------------------------- analysis -- */
 
 /*
  * Analysis visual heights. The top row carries the primary content (profile and
@@ -97,4 +226,10 @@ body {
 
 .viz-secondary {
   height: clamp(210px, 30vh, 360px);
+}
+
+/** Thin status rule down the left of a banner, coloured by severity. */
+.status-rule {
+  border-left-width: 2px;
+  border-left-style: solid;
 }

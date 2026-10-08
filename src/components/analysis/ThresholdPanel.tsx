@@ -60,7 +60,7 @@ export function ThresholdPanel({ overlay, loading, error }: ThresholdPanelProps)
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="viz-primary relative overflow-hidden rounded-sm bg-steel-950/60">
+      <div className="surface-inset viz-primary relative overflow-hidden rounded-sm">
         {image ? (
           <img
             src={image}
@@ -129,10 +129,10 @@ export function ThresholdPanel({ overlay, loading, error }: ThresholdPanelProps)
                 onClick={() => setView(v)}
                 aria-pressed={view === v}
                 className={[
-                  'rounded-sm border px-2 py-0.5 text-xs transition-colors',
+                  'focus-ring rounded-sm border px-2 py-0.5 text-xs transition-colors duration-100',
                   view === v
-                    ? 'border-signal-yellow/50 bg-steel-800 text-steel-100'
-                    : 'border-steel-700/50 bg-steel-950/80 text-steel-300 hover:text-steel-100',
+                    ? 'border-accent-600/60 bg-accent-500/12 text-steel-50'
+                    : 'border-[color:var(--border-hairline)] bg-steel-950/60 text-steel-300 hover:border-[color:var(--border-control-hover)] hover:text-steel-100',
                 ].join(' ')}
               >
                 {VIEW_LABEL[v]}

@@ -5,20 +5,20 @@ import { Button } from '../ui/Button'
 const VERDICT = {
   alert: {
     label: 'Anomalies detected',
-    ring: 'border-signal-red/50 bg-signal-red/10',
-    dot: 'bg-signal-red',
+    ring: 'border-[color:var(--border-hairline)] border-l-signal-red bg-signal-red/8',
+    dot: 'bg-signal-red shadow-[0_0_8px_rgba(214,69,69,0.5)]',
     text: 'text-signal-red-text',
   },
   watch: {
     label: 'Worth a look',
-    ring: 'border-signal-yellow/45 bg-signal-yellow/10',
-    dot: 'bg-signal-yellow',
+    ring: 'border-[color:var(--border-hairline)] border-l-signal-yellow bg-signal-yellow/8',
+    dot: 'bg-signal-yellow shadow-[0_0_8px_rgba(232,184,74,0.45)]',
     text: 'text-signal-yellow',
   },
   clean: {
     label: 'No anomalies detected',
-    ring: 'border-signal-green/40 bg-signal-green/10',
-    dot: 'bg-signal-green',
+    ring: 'border-[color:var(--border-hairline)] border-l-signal-green bg-signal-green/8',
+    dot: 'bg-signal-green shadow-[0_0_8px_rgba(61,154,106,0.45)]',
     text: 'text-signal-green',
   },
 } as const
@@ -54,7 +54,7 @@ export function AnomalyBanner({
 
   if (loading || !report) {
     return (
-      <div className="rounded-sm border border-steel-700/40 bg-steel-900/40 px-3 py-2 text-xs text-steel-400">
+      <div className="surface-sunken rounded-sm px-3 py-2.5 text-xs text-steel-400">
         {loading ? 'Scoring layers…' : 'Anomaly detection unavailable for this build.'}
       </div>
     )
@@ -64,11 +64,13 @@ export function AnomalyBanner({
   const alerts = report.anomalies.filter((a) => a.severity === 'alert').length
 
   return (
-    <div className={`rounded-sm border px-3 py-2.5 ${style.ring}`}>
+    <div className={`status-rule rounded-sm border px-3 py-2.5 ${style.ring}`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
         <span className="inline-flex items-center gap-2">
-          <span aria-hidden className={`h-2 w-2 rounded-full ${style.dot}`} />
-          <span className={`font-medium ${style.text}`}>{style.label}</span>
+          <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+          <span className={`text-sm font-semibold tracking-tight ${style.text}`}>
+            {style.label}
+          </span>
         </span>
 
         <span className="text-steel-300">
@@ -91,7 +93,7 @@ export function AnomalyBanner({
         <button
           type="button"
           onClick={() => setShowModel((v) => !v)}
-          className="ml-auto text-steel-400 underline decoration-dotted underline-offset-2 hover:text-steel-200"
+          className="focus-ring ml-auto text-steel-400 underline decoration-dotted underline-offset-2 transition-colors hover:text-steel-200"
           aria-expanded={showModel}
         >
           How this is detected
@@ -99,15 +101,15 @@ export function AnomalyBanner({
       </div>
 
       {report.events.length > 0 && (
-        <ul className="mt-2 flex flex-col gap-1.5 border-t border-steel-700/30 pt-2">
+        <ul className="mt-2.5 flex flex-col gap-1 border-t border-[color:var(--border-hairline)] pt-2">
           {report.events.map((event) => (
             <li
               key={`${event.onsetLayer}-${event.endLayer}`}
-              className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-sm px-1 py-1 text-xs transition-colors hover:bg-steel-50/[0.03]"
             >
               <span
                 aria-hidden
-                className={`h-1.5 w-1.5 rounded-full ${
+                className={`h-1 w-1 shrink-0 rounded-full ${
                   event.severity === 'alert' ? 'bg-signal-red' : 'bg-signal-yellow'
                 }`}
               />
@@ -140,13 +142,13 @@ export function AnomalyBanner({
       )}
 
       {showModel && (
-        <div className="mt-2 border-t border-steel-700/30 pt-2 text-xs leading-relaxed text-steel-300">
+        <div className="mt-2.5 border-t border-[color:var(--border-hairline)] pt-2.5 text-xs leading-relaxed text-steel-300">
           <p>
             Each layer past the ramp-up is scored on how far its mean temperature and melt-pool
             size sit from this build&rsquo;s own steady state, plus how abruptly they moved. The
             model was fitted on the coupons ranked best in the quality sheet, and flags a layer
             above a score of{' '}
-            <span className="font-mono text-steel-200">{report.model.alertThreshold}</span>.
+            <span className="readout text-steel-200">{report.model.alertThreshold}</span>.
           </p>
           <p className="mt-1.5 text-steel-400">{report.model.validation}</p>
           <p className="mt-1.5 text-steel-400">

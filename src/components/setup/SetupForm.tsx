@@ -24,10 +24,10 @@ function QualityBadge({ build }: { build: BuildSummary }) {
   return (
     <span
       className={[
-        'rounded-sm border px-1.5 py-0.5 text-xs',
+        'rounded-sm border px-1.5 py-0.5 text-xs font-medium',
         best
-          ? 'border-signal-green/40 bg-signal-green/10 text-signal-green'
-          : 'border-signal-red/40 bg-signal-red/10 text-signal-red-text',
+          ? 'border-signal-green/35 bg-signal-green/10 text-signal-green'
+          : 'border-signal-red/35 bg-signal-red/10 text-signal-red-text',
       ].join(' ')}
       title="From the coupon quality ranking, which names the highest- and lowest-rated coupon in each pass group"
     >
@@ -158,7 +158,7 @@ export function SetupForm() {
       }}
       className="flex flex-col gap-6"
     >
-      <p className="-mb-3 text-xs text-steel-400">Step 1 of 2</p>
+      <p className="eyebrow -mb-3 text-steel-500">Step 1 of 2</p>
 
       <Field
         label="Coupon build"
@@ -206,7 +206,7 @@ export function SetupForm() {
       </Field>
 
       {selected && (
-        <div className="-mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded border border-steel-700/40 bg-steel-900/40 px-3 py-2.5 text-xs">
+        <div className="surface-sunken -mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-sm px-3 py-2.5 text-xs">
           <Detail label="Layers" value={String(selected.layers)} />
           <Detail label="Increment" value={`${selected.layerHeightMm.toFixed(1)} mm`} />
           <Detail label="Built height" value={`${selected.targetHeightMm} mm`} />
@@ -216,9 +216,9 @@ export function SetupForm() {
               className="inline-flex items-baseline gap-1.5"
               title="Mean deviation of the finished top face from nominal, measured off the machine by GOM. Negative means the wall came out short."
             >
-              <span className="uppercase tracking-[0.08em] text-steel-400">Measured height</span>
+              <span className="eyebrow">Measured height</span>
               <span
-                className={`font-mono ${
+                className={`readout ${
                   Math.abs(selected.geometryHeightDeviationMm) >= 5
                     ? 'text-signal-yellow'
                     : 'text-steel-200'
@@ -250,7 +250,7 @@ export function SetupForm() {
             <Button type="submit" disabled={busy || !sampleId}>
               {submitting === 'process' ? 'Starting…' : 'Process Insight'}
             </Button>
-            <p className="text-xs leading-relaxed text-steel-400">
+            <p className="text-xs leading-relaxed text-steel-500">
               Layer-by-layer temperature and melt-pool trends
               {builds.length ? ` for all ${builds.length} builds` : ''}.
             </p>
@@ -265,24 +265,24 @@ export function SetupForm() {
             >
               {submitting === 'alloy' ? 'Starting…' : 'Alloy Insight'}
             </Button>
-            <p className="text-xs leading-relaxed text-steel-400">
+            <p className="text-xs leading-relaxed text-steel-500">
               Melt-pool images segmented from thermal-camera frames
               {thermalCount ? ` (${thermalCount} ${thermalCount === 1 ? 'build' : 'builds'})` : ''}.
             </p>
           </div>
         </div>
-        {alloyUnavailable && <p className="text-xs text-steel-300">{alloyUnavailable}</p>}
+        {alloyUnavailable && (
+          <p className="text-xs leading-relaxed text-steel-400">{alloyUnavailable}</p>
+        )}
         {error && (
-          <p className="rounded border border-signal-red/40 bg-signal-red/10 px-3 py-2 text-sm text-signal-red-text">
+          <p className="status-rule rounded-sm border border-[color:var(--border-hairline)] border-l-signal-red bg-signal-red/8 px-3 py-2 text-sm text-signal-red-text">
             {error}
           </p>
         )}
       </div>
 
-      <div className="flex flex-col gap-6 border-t border-steel-700/40 pt-6">
-        <p className="text-xs font-medium uppercase tracking-[0.08em] text-steel-400">
-          Detection parameters
-        </p>
+      <div className="flex flex-col gap-5 border-t border-[color:var(--border-hairline)] pt-6">
+        <p className="eyebrow">Detection parameters</p>
 
         <div className="grid gap-6 sm:grid-cols-2">
           <Field
@@ -326,7 +326,7 @@ export function SetupForm() {
                 step={10}
                 value={meltingTempC}
                 onChange={(e) => setMeltingTempC(Number(e.target.value))}
-                className="w-full rounded border border-steel-600/50 bg-steel-900/80 px-3 py-2.5 pr-12 font-mono text-sm text-steel-100 focus:border-signal-yellow/50 focus:outline-none focus:ring-1 focus:ring-signal-yellow/30"
+                className="ctl w-full px-3 py-2 pr-12 font-mono text-sm text-steel-100"
               />
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-steel-400">
                 °C
@@ -336,7 +336,7 @@ export function SetupForm() {
               <button
                 type="button"
                 onClick={() => setMeltingTempC(MACHINE_MELT_THRESHOLD_C)}
-                className="mt-1.5 self-start text-xs text-steel-400 underline decoration-dotted underline-offset-2 hover:text-steel-200"
+                className="focus-ring mt-2 self-start text-xs text-steel-400 underline decoration-dotted underline-offset-2 transition-colors hover:text-steel-200"
               >
                 Reset to the machine’s {MACHINE_MELT_THRESHOLD_C} °C
               </button>
@@ -372,10 +372,10 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={[
-        'rounded-sm border px-2.5 py-1 text-xs transition-colors',
+        'focus-ring rounded-sm border px-2.5 py-1 text-xs transition-colors duration-100',
         active
-          ? 'border-signal-yellow/40 bg-steel-800/80 text-steel-50'
-          : 'border-steel-700/40 bg-steel-900/40 text-steel-300 hover:border-steel-600/60',
+          ? 'border-accent-600/60 bg-accent-500/12 text-steel-50'
+          : 'border-[color:var(--border-hairline)] bg-steel-900/40 text-steel-300 hover:border-[color:var(--border-control-hover)] hover:text-steel-100',
       ].join(' ')}
     >
       {label}
@@ -386,8 +386,8 @@ function FilterChip({
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <span className="inline-flex items-baseline gap-1.5">
-      <span className="uppercase tracking-[0.08em] text-steel-400">{label}</span>
-      <span className="font-mono text-steel-200">{value}</span>
+      <span className="eyebrow">{label}</span>
+      <span className="readout text-steel-200">{value}</span>
     </span>
   )
 }

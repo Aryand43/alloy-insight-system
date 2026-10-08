@@ -102,7 +102,7 @@ export function MeltPoolImagesPanel({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="viz-primary relative overflow-hidden rounded-sm bg-steel-950/60">
+      <div className="surface-inset viz-primary relative overflow-hidden rounded-sm">
         {error ? (
           <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-signal-red-text">
             {error}
@@ -116,7 +116,7 @@ export function MeltPoolImagesPanel({
               className="absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
               decoding="async"
             />
-            <span className="absolute left-2 top-2 rounded-sm border border-steel-600/50 bg-steel-950/85 px-2 py-0.5 text-xs text-steel-300">
+            <span className="absolute left-2 top-2 rounded-sm border border-[color:var(--border-hairline)] bg-steel-950/88 px-2 py-0.5 text-xs text-steel-300 backdrop-blur-[2px]">
               Segmented from raw camera frame
             </span>
           </>
@@ -159,7 +159,7 @@ export function MeltPoolImagesPanel({
             max={Math.max(total - 1, 0)}
             value={position}
             onChange={(e) => onSeek(Number(e.target.value))}
-            className="h-1 w-full cursor-pointer accent-signal-yellow"
+            className="h-1 w-full cursor-pointer accent-accent-400"
             aria-label="Frame within layer"
           />
           {/* Ticks sit under the thumb and ignore pointer events, so dragging

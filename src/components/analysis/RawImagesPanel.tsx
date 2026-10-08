@@ -69,14 +69,14 @@ export function RawImagesPanel({
         )}
         {selected?.measured === false && (
           <span
-            className="pointer-events-none absolute right-2 top-2 rounded-sm border border-steel-600/50 bg-steel-950/85 px-2 py-0.5 text-xs text-steel-300"
+            className="pointer-events-none absolute right-2 top-2 rounded-sm border border-[color:var(--border-hairline)] bg-steel-950/88 px-2 py-0.5 text-xs text-steel-300 backdrop-blur-[2px]"
             title="The corpus stores one mean per layer, so this chart is drawn from the per-layer mean temperatures"
           >
             Chart from layer means
           </span>
         )}
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-0.5">
+      <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
         {frames.map((frame) => {
           const active = frame.id === (selectedId ?? frames[0]?.id)
           return (
@@ -88,10 +88,10 @@ export function RawImagesPanel({
               aria-label={`Show ${frame.label}`}
               aria-pressed={active}
               className={[
-                'shrink-0 overflow-hidden rounded-sm border transition-colors',
+                'focus-ring shrink-0 overflow-hidden rounded-sm border transition-colors duration-100',
                 active
-                  ? 'border-signal-yellow/70 ring-1 ring-signal-yellow/30'
-                  : 'border-steel-700/50 hover:border-steel-500',
+                  ? 'border-accent-400/70 ring-1 ring-accent-400/35'
+                  : 'border-[color:var(--border-hairline)] hover:border-[color:var(--border-control-hover)]',
               ].join(' ')}
             >
               {/*

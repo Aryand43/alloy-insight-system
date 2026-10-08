@@ -71,10 +71,10 @@ export function QueryPanel({ sessionId, buildId }: QueryPanelProps) {
   }
 
   return (
-    <section className="rounded-sm border border-steel-700/30 bg-steel-900/30 px-3 py-2.5">
+    <section className="surface-sunken rounded-sm px-3 py-3">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className="text-sm font-medium text-steel-100">Ask about this data</h2>
-        <span className="text-xs text-steel-400">
+        <h2 className="eyebrow text-steel-300">Ask about this data</h2>
+        <span className="text-xs text-steel-500">
           Grounded in {buildId} and the other 25 builds — layer profiles, flagged layers, process
           parameters and measured geometry
         </span>
@@ -82,7 +82,7 @@ export function QueryPanel({ sessionId, buildId }: QueryPanelProps) {
           <button
             type="button"
             onClick={() => setTurns([])}
-            className="ml-auto text-xs text-steel-400 underline decoration-dotted underline-offset-2 hover:text-steel-200"
+            className="focus-ring ml-auto text-xs text-steel-400 underline decoration-dotted underline-offset-2 transition-colors hover:text-steel-200"
           >
             Clear thread
           </button>
@@ -92,11 +92,14 @@ export function QueryPanel({ sessionId, buildId }: QueryPanelProps) {
       {turns.length > 0 && (
         <div
           ref={threadRef}
-          className="mt-2.5 flex max-h-96 flex-col gap-3 overflow-y-auto border-t border-steel-700/30 pt-2.5"
+          className="mt-3 flex max-h-96 flex-col gap-3 overflow-y-auto border-t border-[color:var(--border-hairline)] pt-3 pr-1"
         >
           {turns.map((turn, i) =>
             turn.role === 'user' ? (
-              <p key={i} className="text-xs font-medium text-steel-300">
+              <p
+                key={i}
+                className="border-l-2 border-accent-600/60 pl-2.5 text-xs font-medium text-steel-300"
+              >
                 {turn.content}
               </p>
             ) : (
@@ -124,7 +127,7 @@ export function QueryPanel({ sessionId, buildId }: QueryPanelProps) {
           }
           maxLength={600}
           aria-label="Question about this build"
-          className="min-w-0 flex-1 rounded-sm border border-steel-600/60 bg-steel-950/60 px-2.5 py-2 text-sm text-steel-100 placeholder:text-steel-500 focus:border-signal-yellow/50 focus:outline-none"
+          className="ctl min-w-0 flex-1 px-2.5 py-2 text-sm placeholder:text-steel-500"
         />
         <Button type="submit" disabled={asking || !question.trim()} className="py-2 text-sm">
           {asking ? 'Asking…' : turns.length ? 'Send' : 'Ask'}
@@ -139,7 +142,7 @@ export function QueryPanel({ sessionId, buildId }: QueryPanelProps) {
               type="button"
               disabled={asking}
               onClick={() => void ask(example)}
-              className="rounded-sm border border-steel-700/50 px-2 py-1 text-xs text-steel-300 hover:border-steel-500 hover:text-steel-100 disabled:opacity-50"
+              className="focus-ring rounded-sm border border-[color:var(--border-hairline)] bg-steel-900/40 px-2 py-1 text-xs text-steel-300 transition-colors hover:border-[color:var(--border-control-hover)] hover:text-steel-100 disabled:opacity-45"
             >
               {example}
             </button>

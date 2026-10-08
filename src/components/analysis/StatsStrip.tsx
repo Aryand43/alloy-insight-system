@@ -24,7 +24,7 @@ const LEVEL_TEXT: Record<AlertLevel, string> = {
 export function StatsStrip({ stats, loading }: StatsStripProps) {
   if (loading || !stats) {
     return (
-      <div className="panel-surface rounded-sm px-4 py-3 text-sm text-steel-400">
+      <div className="surface-sunken rounded-sm px-4 py-3 text-sm text-steel-400">
         {loading ? 'Loading stability summary…' : 'No layer statistics available for this build.'}
       </div>
     )
@@ -52,13 +52,11 @@ export function StatsStrip({ stats, loading }: StatsStripProps) {
   ] as const
 
   return (
-    <div className="panel-surface rounded-sm px-4 py-3">
+    <div className="surface-sunken rounded-sm px-4 py-3">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-steel-400">
-            Layer Temperature Stability
-          </h2>
-          <p className="text-xs text-steel-400">
+        <div className="flex flex-col gap-1">
+          <h2 className="eyebrow text-steel-300">Layer Temperature Stability</h2>
+          <p className="text-xs text-steel-500">
             From per-layer mean temperatures
             {stats.layerCount ? ` across ${stats.layerCount} layers` : ''}
           </p>
@@ -71,7 +69,7 @@ export function StatsStrip({ stats, loading }: StatsStripProps) {
         </p>
       </div>
 
-      <div className="flex h-2.5 w-full overflow-hidden rounded-sm bg-steel-900">
+      <div className="flex h-2 w-full overflow-hidden rounded-sm bg-steel-950 ring-1 ring-inset ring-[color:var(--border-hairline)]">
         {bins.map((b) => (
           <div
             key={b.key}
@@ -87,7 +85,7 @@ export function StatsStrip({ stats, loading }: StatsStripProps) {
           <div key={b.key} className="flex items-center gap-2 text-xs">
             <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${b.bar}`} />
             <span className="text-steel-400">{b.label}</span>
-            <span className="ml-auto font-mono text-steel-200">{b.pct}%</span>
+            <span className="readout ml-auto text-steel-200">{b.pct}%</span>
           </div>
         ))}
       </div>

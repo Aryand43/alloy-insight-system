@@ -28,10 +28,11 @@ export function SegmentedControl<T extends string>({
           <label
             key={opt.value}
             className={[
-              'flex cursor-pointer items-center gap-3 rounded border px-3 py-2.5 text-sm transition-colors',
+              'flex cursor-pointer items-center gap-2.5 rounded-sm border px-3 py-2 text-sm transition-colors duration-100',
+              'focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent-400',
               selected
-                ? 'border-signal-yellow/40 bg-steel-800/80 text-steel-50'
-                : 'border-steel-700/40 bg-steel-900/40 text-steel-300 hover:border-steel-600/60',
+                ? 'border-accent-600/60 bg-accent-500/10 text-steel-50'
+                : 'border-[color:var(--border-hairline)] bg-steel-900/40 text-steel-300 hover:border-[color:var(--border-control-hover)] hover:text-steel-100',
             ].join(' ')}
           >
             <input
@@ -44,16 +45,12 @@ export function SegmentedControl<T extends string>({
             />
             <span
               className={[
-                'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border',
-                selected
-                  ? 'border-signal-yellow bg-signal-yellow'
-                  : 'border-steel-500',
+                'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                selected ? 'border-accent-400 bg-accent-500' : 'border-steel-500',
               ].join(' ')}
               aria-hidden
             >
-              {selected && (
-                <span className="h-1.5 w-1.5 rounded-full bg-steel-950" />
-              )}
+              {selected && <span className="h-1.5 w-1.5 rounded-full bg-steel-950" />}
             </span>
             {opt.label}
           </label>
