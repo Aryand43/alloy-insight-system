@@ -74,7 +74,7 @@ export function ThermalProfilePanel({
             `Layer ${layer}`,
             match ? `z ${match.zMm.toFixed(2)} mm` : null,
             match ? `${match.meanTempC.toFixed(0)} °C` : 'no frames captured',
-            layer <= transitionEndLayer ? 'ramp-up — not scored' : null,
+            layer <= transitionEndLayer ? 'ramp-up, not scored' : null,
             severity ? `flagged (${severity})` : null,
           ]
             .filter(Boolean)
@@ -105,7 +105,7 @@ export function ThermalProfilePanel({
                   `z ${l.zMm.toFixed(2)} mm`,
                   `${l.frameCount} frames`,
                   `${l.meanTempC.toFixed(0)} °C`,
-                  rampUp ? 'ramp-up — not scored' : null,
+                  rampUp ? 'ramp-up, not scored' : null,
                   severity ? `flagged (${severity})` : null,
                 ]
                   .filter(Boolean)

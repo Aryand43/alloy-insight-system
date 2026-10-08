@@ -13,7 +13,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
  * payloads say so, so a demo in mock mode can never be mistaken for measured
  * output.
  */
-const MOCK_NOTE = 'Sample data — the data bridge is not connected.'
+const MOCK_NOTE = 'Sample data. The data bridge is not connected.'
 
 export async function mockGetAnomalies(sessionId: string): Promise<AnomalyReport> {
   await delay(120)

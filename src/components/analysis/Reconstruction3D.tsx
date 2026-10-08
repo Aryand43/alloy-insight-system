@@ -67,7 +67,7 @@ export function Reconstruction3D({ data, loading }: Reconstruction3DProps) {
       {meta && (
         <p
           className="text-xs text-steel-400"
-          title="Slab thickness is the equivalent bead width of each layer's measured melt-pool area — a single-track estimate, not a measured wall thickness"
+          title="Slab thickness is the equivalent bead width of each layer's measured melt-pool area: a single-track estimate, not a measured wall thickness"
         >
           Estimated from layer means ·{' '}
           <span className="font-mono text-steel-200">{meta.layers}</span> layers ·{' '}

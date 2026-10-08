@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import type { BoundaryPoint } from '../../domain/types'
 import { metricColor, metricGradientCss } from '../../domain/metricColor'
 import { rotateHeading, rotateQuarterTurns } from '../../domain/orientation'
@@ -18,6 +18,9 @@ interface BoundaryMapProps {
   height?: string
   /** Quarter turns applied so the direction of travel runs down the screen. */
   quarterTurns?: number
+  /** Index into `points` of the probed point, shared across the three maps. */
+  selectedIndex?: number | null
+  onSelectPoint?: (index: number) => void
 }
 
 function valueOf(point: BoundaryPoint, metric: BoundaryMetric): number | null {
@@ -45,7 +48,10 @@ export function BoundaryMap({
   trailingOnly,
   height = 'viz-secondary',
   quarterTurns = 0,
+  selectedIndex = null,
+  onSelectPoint,
 }: BoundaryMapProps) {
+  const svgRef = useRef<SVGSVGElement>(null)
   // Rotation is applied to the plotted coordinates, not to the measurements:
   // every value was computed in the camera's frame and is unchanged by it.
   const placed = useMemo(
@@ -92,6 +98,51 @@ export function BoundaryMap({
 
   const width = view.maxX - view.minX
   const depth = view.maxY - view.minY
+  // Captured as plain numbers: a hoisted function cannot rely on the narrowing
+  // that the null check above gives `view`.
+  const originX = view.minX
+  const originY = view.minY
+
+  /*
+   * Clicking picks the nearest boundary point rather than requiring a hit on
+   * the drawn dot. The dots are a fraction of a millimetre across in a ~5 mm
+   * field, so demanding a direct hit would make probing the contour a test of
+   * mouse control; anywhere near the edge is unambiguous about which point was
+   * meant.
+   */
+  function selectNearest(clientX: number, clientY: number): void {
+    const svg = svgRef.current
+    if (!svg || !onSelectPoint) return
+    const rect = svg.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+
+    // Undo preserveAspectRatio="xMidYMid meet" to get viewBox coordinates.
+    const scale = Math.min(rect.width / width, rect.height / depth)
+    const drawnX = (rect.width - width * scale) / 2
+    const drawnY = (rect.height - depth * scale) / 2
+    const x = originX + (clientX - rect.left - drawnX) / scale
+    const y = originY + (clientY - rect.top - drawnY) / scale
+
+    let best = -1
+    let bestDistance = Infinity
+    placed.forEach((p, i) => {
+      const d = (p.x - x) ** 2 + (p.y - y) ** 2
+      if (d < bestDistance) {
+        bestDistance = d
+        best = i
+      }
+    })
+    if (best >= 0) onSelectPoint(best)
+  }
+
+  /** Steps the probe along the contour, so it is reachable without a mouse. */
+  function step(delta: number): void {
+    if (!onSelectPoint || !placed.length) return
+    const from = selectedIndex ?? 0
+    onSelectPoint((from + delta + placed.length) % placed.length)
+  }
+
+  const selected = selectedIndex !== null ? placed[selectedIndex] : undefined
   // Arrow sits top-left, in the same mm space as the points.
   const arrowLength = Math.min(width, depth) * 0.22
   const radians = (heading * Math.PI) / 180
@@ -105,14 +156,29 @@ export function BoundaryMap({
     <div className="flex flex-col gap-2">
       <div className={`surface-inset ${height} relative overflow-hidden rounded-sm`}>
         <svg
+          ref={svgRef}
           viewBox={`${view.minX} ${view.minY} ${width} ${depth}`}
-          className="absolute inset-0 h-full w-full"
+          className={[
+            'absolute inset-0 h-full w-full focus-ring',
+            onSelectPoint ? 'cursor-crosshair' : '',
+          ].join(' ')}
           preserveAspectRatio="xMidYMid meet"
-          role="img"
+          role={onSelectPoint ? 'application' : 'img'}
+          tabIndex={onSelectPoint ? 0 : undefined}
+          onClick={(e) => selectNearest(e.clientX, e.clientY)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+              e.preventDefault()
+              step(1)
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+              e.preventDefault()
+              step(-1)
+            }
+          }}
           aria-label={
             metric === 'none'
-              ? 'Melt-pool boundary'
-              : `Melt-pool boundary coloured by ${metric === 'gradient' ? 'thermal gradient' : 'solidification rate'}`
+              ? 'Melt-pool boundary. Click a point on the contour to measure it.'
+              : `Melt-pool boundary coloured by ${metric === 'gradient' ? 'thermal gradient' : 'solidification rate'}. Click a point on the contour to measure it.`
           }
         >
           {placed.map(({ point: p, x, y }, i) => {
@@ -147,6 +213,38 @@ export function BoundaryMap({
               }`}
             />
           </g>
+          {selected && (
+            <g pointerEvents="none">
+              {/* Hairlines to the axes, so the probe reads as an instrument
+                  cursor rather than another data point. */}
+              <line
+                x1={view.minX}
+                y1={selected.y}
+                x2={selected.x}
+                y2={selected.y}
+                stroke="#f2f5f9"
+                strokeWidth={Math.max(width, depth) / 500}
+                opacity="0.35"
+              />
+              <line
+                x1={selected.x}
+                y1={view.minY}
+                x2={selected.x}
+                y2={selected.y}
+                stroke="#f2f5f9"
+                strokeWidth={Math.max(width, depth) / 500}
+                opacity="0.35"
+              />
+              <circle
+                cx={selected.x}
+                cy={selected.y}
+                r={Math.max(width, depth) / 45}
+                fill="none"
+                stroke="#f2f5f9"
+                strokeWidth={Math.max(width, depth) / 300}
+              />
+            </g>
+          )}
           <text
             x={ax}
             y={ay - depth * 0.05}

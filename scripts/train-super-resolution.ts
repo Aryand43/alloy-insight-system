@@ -330,7 +330,7 @@ async function main(): Promise<void> {
   }
 
   const body = `/**
- * GENERATED FILE — do not edit by hand.
+ * GENERATED FILE. Do not edit by hand.
  * Run \`npx tsx scripts/train-super-resolution.ts\` to refit.
  *
  * Fitted ${new Date().toISOString().slice(0, 10)} on Backend-Data thermal frames.

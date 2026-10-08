@@ -235,7 +235,7 @@ export function SetupForm() {
             title={
               selected.hasKivImages
                 ? 'Per-layer temperature and size histogram images exist for this build'
-                : 'No histogram images — layer charts are drawn from the per-layer mean values'
+                : 'No histogram images, so layer charts are drawn from the per-layer mean values'
             }
           >
             {selected.hasKivImages ? 'Layer histograms' : 'Layer means only'}
@@ -311,7 +311,7 @@ export function SetupForm() {
             hint={
               materialMeltC !== null && meltingTempC === materialMeltC
                 ? `The tracked melt-pool boundary: pixels hotter than this are inside the pool, and the melt-pool images, thermal gradient and solidification rate are all measured on that contour. ${materialMeltC} °C is ${selectedMaterialLabel}; the machine’s own controller counted above ${MACHINE_MELT_THRESHOLD_C} °C.`
-                : `Your value, not ${selectedMaterialLabel}’s ${materialMeltC ?? MACHINE_MELT_THRESHOLD_C} °C — the boundary, the melt-pool images, the thermal gradient and the solidification rate will all use ${meltingTempC} °C.`
+                : `Your value, not ${selectedMaterialLabel}’s ${materialMeltC ?? MACHINE_MELT_THRESHOLD_C} °C. The boundary, the melt-pool images, the thermal gradient and the solidification rate will all use ${meltingTempC} °C.`
             }
             error={tempError ?? undefined}
           >

@@ -48,7 +48,7 @@ export function AppShell({ children, compact = false, trailing }: AppShellProps)
         >
           <Link
             to="/"
-            title={`PRISM — ${PRISM_EXPANSION}`}
+            title={`PRISM: ${PRISM_EXPANSION}`}
             className="focus-ring flex items-center gap-2.5 no-underline transition-opacity hover:opacity-90"
           >
             <BrandMark size={compact ? 22 : 30} />

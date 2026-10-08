@@ -178,7 +178,7 @@ async function main(): Promise<void> {
 
   const manifest = {
     generatedAt: new Date().toISOString(),
-    note: 'Demo subset of Backend-Data. Unpublished research data — do not commit to a public repository.',
+    note: 'Demo subset of Backend-Data. Unpublished research data: do not commit to a public repository.',
     thermal: { buildId: THERMAL_BUILD, frameStep: FRAME_STEP, layers },
     anomalyVerdict: report.verdict,
     totals: { files, bytes },
@@ -191,7 +191,7 @@ async function main(): Promise<void> {
   const buildCount = (await getCatalog()).length
   const flaggedList = layers.filter((l) => l.why === 'flagged').map((l) => l.layer)
   const steadyList = layers.filter((l) => l.why !== 'flagged').map((l) => l.layer)
-  const note = `Demo dataset: thermal frames for build ${THERMAL_BUILD} — layers ${flaggedList.join(', ')} flagged by the anomaly model and ${steadyList.join(', ')} within steady state, every ${ordinal(FRAME_STEP)} frame. All ${buildCount} builds are available in Process Insight.`
+  const note = `Demo dataset: thermal frames for build ${THERMAL_BUILD}, layers ${flaggedList.join(', ')} flagged by the anomaly model and ${steadyList.join(', ')} within steady state, every ${ordinal(FRAME_STEP)} frame. All ${buildCount} builds are available in Process Insight.`
   const env = await fs.readFile(ENV_DEMO, 'utf8')
   const line = `VITE_DEMO_NOTE="${note}"`
   await fs.writeFile(

@@ -55,7 +55,7 @@ export function invert(matrix: number[][]): number[][] {
       if (Math.abs(a[r][col]) > Math.abs(a[pivot][col])) pivot = r
     }
     if (Math.abs(a[pivot][col]) < 1e-12) {
-      throw new Error('matrix is singular — cannot invert covariance')
+      throw new Error('matrix is singular, cannot invert covariance')
     }
     if (pivot !== col) [a[col], a[pivot]] = [a[pivot], a[col]]
 

@@ -150,7 +150,7 @@ async function main(): Promise<void> {
     worstFrameRates.length > 0 && Math.min(...worstFrameRates) > Math.max(...bestFrameRates)
   const frameValidation = frameSeparates
     ? `Frame flag rate separates ranked coupons: best ${pct(Math.max(...bestFrameRates))} or less, worst ${pct(Math.min(...worstFrameRates))} or more.`
-    : `Localises deviation within a layer; it does not predict coupon quality — flag rates are ${pct(Math.min(...bestFrameRates))}-${pct(Math.max(...bestFrameRates))} for best-ranked runs and ${worstFrameRates.length ? `${pct(Math.min(...worstFrameRates))}-${pct(Math.max(...worstFrameRates))}` : 'unmeasured'} for worst-ranked.`
+    : `Localises deviation within a layer; it does not predict coupon quality. Flag rates are ${pct(Math.min(...bestFrameRates))}-${pct(Math.max(...bestFrameRates))} for best-ranked runs and ${worstFrameRates.length ? `${pct(Math.min(...worstFrameRates))}-${pct(Math.max(...worstFrameRates))}` : 'unmeasured'} for worst-ranked.`
   console.log(`[train] frame verdict: ${frameValidation}`)
 
   /* ------------------------------------------------------------- emit -- */
@@ -160,7 +160,7 @@ async function main(): Promise<void> {
     `Held out by family: ${validation.join('; ')}.`
 
   const body = `/**
- * GENERATED FILE — do not edit by hand.
+ * GENERATED FILE. Do not edit by hand.
  * Run \`npx tsx scripts/train-anomaly-model.ts\` to refit.
  *
  * Fitted ${new Date().toISOString().slice(0, 10)} on Backend-Data.

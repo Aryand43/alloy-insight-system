@@ -43,7 +43,7 @@ export function ThermalColorBar({
         <div
           className="absolute top-[-2px] bottom-[-2px] w-px bg-steel-50"
           style={{ left: `${pct(meltThresholdC)}%` }}
-          title={`${meltThresholdC.toFixed(0)} °C — melt threshold, from the machine log`}
+          title={`${meltThresholdC.toFixed(0)} °C melt threshold, from the machine log`}
         />
         {transitionC !== undefined && (
           <div
@@ -53,7 +53,7 @@ export function ThermalColorBar({
               backgroundImage:
                 'repeating-linear-gradient(to bottom, #c5d0db 0 2px, transparent 2px 4px)',
             }}
-            title={`${transitionC.toFixed(0)} °C — assumed lower band edge, pending review`}
+            title={`${transitionC.toFixed(0)} °C assumed lower band edge, pending review`}
           />
         )}
       </div>

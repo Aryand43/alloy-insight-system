@@ -149,7 +149,7 @@ export function ThresholdPanel({ overlay, loading, error }: ThresholdPanelProps)
       ) : (
         <>
           <p className="text-xs text-steel-400">
-            Estimated shape — sized from this layer’s mean melt-pool area;
+            Estimated shape, sized from this layer’s mean melt-pool area;
             elongation assumed. Not image segmentation.
           </p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-300">

@@ -75,7 +75,7 @@ export function QueryPanel({ sessionId, buildId }: QueryPanelProps) {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="eyebrow text-steel-300">Ask about this data</h2>
         <span className="text-xs text-steel-500">
-          Grounded in {buildId} and the other 25 builds — layer profiles, flagged layers, process
+          Grounded in {buildId} and the other 25 builds: layer profiles, flagged layers, process
           parameters and measured geometry
         </span>
         {turns.length > 0 && (

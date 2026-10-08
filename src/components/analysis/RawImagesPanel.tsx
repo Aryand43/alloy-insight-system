@@ -59,7 +59,7 @@ export function RawImagesPanel({
               return [
                 `Layer ${layer}`,
                 frame?.zMm !== undefined ? `z ${frame.zMm.toFixed(2)} mm` : null,
-                layer <= transitionEndLayer ? 'ramp-up — not scored' : null,
+                layer <= transitionEndLayer ? 'ramp-up, not scored' : null,
                 severity ? `flagged (${severity})` : null,
               ]
                 .filter(Boolean)

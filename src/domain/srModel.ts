@@ -1,5 +1,5 @@
 /**
- * GENERATED FILE — do not edit by hand.
+ * GENERATED FILE. Do not edit by hand.
  * Run `npx tsx scripts/train-super-resolution.ts` to refit.
  *
  * Fitted 2026-10-08 on Backend-Data thermal frames.

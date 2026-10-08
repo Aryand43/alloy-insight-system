@@ -38,7 +38,7 @@ sessionsRouter.post('/sessions', async (req, res) => {
   const sampleId = typeof config.sampleId === 'string' ? config.sampleId.trim() : ''
   if (!sampleId) {
     throw new HttpError(
-      'config.sampleId is required — pick a build from GET /catalog',
+      'config.sampleId is required. Pick a build from GET /catalog',
       400,
     )
   }

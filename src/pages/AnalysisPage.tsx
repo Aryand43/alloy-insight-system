@@ -103,6 +103,13 @@ export function AnalysisPage() {
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [fieldFull, setFieldFull] = useState<ThermalField | null>(null)
   const [physics, setPhysics] = useState<MeltPoolPhysics | null>(null)
+  /*
+   * The probed contour point, held here so the boundary, gradient and
+   * solidification maps all mark the same place. It is an index into the
+   * current frame's point list, so it is cleared whenever that list is
+   * replaced.
+   */
+  const [probeIndex, setProbeIndex] = useState<number | null>(null)
   const [physicsError, setPhysicsError] = useState<string | null>(null)
   const [thermalIndex, setThermalIndex] = useState<ThermalLayerIndex | null>(null)
   const [frameWindow, setFrameWindow] = useState<ThermalFrameWindow | null>(null)
@@ -159,7 +166,7 @@ export function AnalysisPage() {
         if (fr[0]) setSelectedFrameId(fr[0].id)
       } catch {
         if (!cancelled) {
-          setError('This analysis could not be loaded. It may have expired — start again from setup.')
+          setError('This analysis could not be loaded. It may have expired, so start again from setup.')
         }
       } finally {
         if (!cancelled) {
@@ -192,7 +199,7 @@ export function AnalysisPage() {
         if (!cancelled) {
           setOverlay(null)
           // Distinct from the empty state — a failure must not read as "select a layer".
-          setOverlayError(userMessage(err, 'Couldn’t load this layer — try another layer.'))
+          setOverlayError(userMessage(err, 'Couldn’t load this layer. Try another layer.'))
         }
       } finally {
         if (!cancelled) setLoadingOverlay(false)
@@ -233,7 +240,7 @@ export function AnalysisPage() {
             const first = index.layers[0].layer
             const last = index.layers[index.layers.length - 1].layer
             setLayerNotice(
-              `Layer ${thermalLayer} has no captured frames — showing layer ${nearest.layer}, the nearest that does. Frames were recorded for layers ${first}–${last} of this build.`,
+              `Layer ${thermalLayer} has no captured frames, so this is layer ${nearest.layer}, the nearest that does. Frames were recorded for layers ${first}–${last} of this build.`,
             )
           } else if (!current) {
             // Open mid-build, mid-layer. Layer 1 is the cold start, where the
@@ -359,6 +366,7 @@ export function AnalysisPage() {
       .then((p) => {
         if (cancelled) return
         setPhysics(p)
+        setProbeIndex(null)
         setPhysicsError(null)
       })
       .catch((err) => {
@@ -496,7 +504,7 @@ export function AnalysisPage() {
     setLayerNotice(
       nearest.layer === layer
         ? null
-        : `Layer ${layer} has no captured frames — showing layer ${nearest.layer}, the nearest that does.`,
+        : `Layer ${layer} has no captured frames, so this is layer ${nearest.layer}, the nearest that does.`,
     )
     setThermalLayer(nearest.layer)
   }
@@ -696,6 +704,8 @@ export function AnalysisPage() {
                 quarterTurns={quarterTurns}
                 loading={loadingThermal || (!physics && !physicsError)}
                 error={physicsError}
+                selectedIndex={probeIndex}
+                onSelectPoint={setProbeIndex}
               />
             ) : (
               <ThreeColor3D data={threeColor} loading={loading3d} />
@@ -715,6 +725,8 @@ export function AnalysisPage() {
                   quarterTurns={quarterTurns}
                   loading={loadingThermal || (!physics && !physicsError)}
                   error={physicsError}
+                  selectedIndex={probeIndex}
+                  onSelectPoint={setProbeIndex}
                 />
               </Panel>
               <Panel title="Solidification Rate">
@@ -723,6 +735,8 @@ export function AnalysisPage() {
                   quarterTurns={quarterTurns}
                   loading={loadingThermal || (!physics && !physicsError)}
                   error={physicsError}
+                  selectedIndex={probeIndex}
+                  onSelectPoint={setProbeIndex}
                 />
               </Panel>
               <div className="lg:col-span-2">

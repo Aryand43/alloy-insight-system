@@ -326,6 +326,15 @@ export function boundaryPhysics(
     }
   }
 
+  /*
+   * Order the points around the contour rather than leaving them in the raster
+   * order the scan produced. Nothing computed depends on the order, but the
+   * probe walks the boundary by index, and in raster order the next index is
+   * usually on the opposite side of the pool. Sorting by angle about the
+   * centre is enough: a melt pool is star-shaped about its own centroid.
+   */
+  points.sort((a, b) => Math.atan2(a.yMm, a.xMm) - Math.atan2(b.yMm, b.xMm))
+
   const sortedG = [...gradients].sort((a, b) => a - b)
   const sortedR = [...rates].sort((a, b) => a - b)
   const medianG = quantile(sortedG, 0.5)

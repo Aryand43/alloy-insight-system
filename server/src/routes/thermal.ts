@@ -261,7 +261,14 @@ thermalRouter.get(
         layer.layer,
         ref.position,
       )
-      res.setHeader('Cache-Control', 'public, max-age=3600')
+      /*
+       * Not cached. The images are heavy and immutable for a given frame and
+       * threshold, but these are computed values, and the computation changes
+       * as the method is refined: an hour of public caching means a browser
+       * can keep showing the previous deploy's gradients at the same URL. The
+       * frame itself is cached server-side, so recomputing is cheap.
+       */
+      res.setHeader('Cache-Control', 'no-store')
       res.json(body)
     } catch (err) {
       if (err instanceof CorruptFrameError) {

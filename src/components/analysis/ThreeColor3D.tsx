@@ -149,7 +149,7 @@ export function ThreeColor3D({ data, loading }: ThreeColor3DProps) {
         </span>
         <span
           className="inline-flex items-center gap-1.5"
-          title="Ramp-up from a cold plate — deviation is expected here, so these layers are not scored"
+          title="Ramp-up from a cold plate, where deviation is expected, so these layers are not scored"
         >
           <span aria-hidden className="h-2 w-2 rounded-full bg-signal-blue" /> Ramp-up, not scored{' '}
           <span className="font-mono text-steel-200">{pct('blue')}%</span>

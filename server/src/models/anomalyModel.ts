@@ -1,8 +1,8 @@
 /**
- * GENERATED FILE — do not edit by hand.
+ * GENERATED FILE. Do not edit by hand.
  * Run `npx tsx scripts/train-anomaly-model.ts` to refit.
  *
- * Fitted 2026-10-06 on Backend-Data.
+ * Fitted 2026-10-08 on Backend-Data.
  *
  * Layer model: 348 steady-state layers from the best-ranked
  * coupon families (60047207, 60076308, 60105609).
@@ -11,7 +11,7 @@
  *   - held out 60105609: best 1.9%-3.8%, worst 6.7%-75.6%
  *
  * Frame model: 39544 frames from the best-ranked runs with
- * frame data. Localises deviation within a layer; it does not predict coupon quality — flag rates are 0.9%-1.1% for best-ranked runs and 0.7%-0.7% for worst-ranked.
+ * frame data. Localises deviation within a layer; it does not predict coupon quality. Flag rates are 0.9%-1.1% for best-ranked runs and 0.7%-0.7% for worst-ranked.
  */
 import type { GaussianModel } from '../services/mahalanobis.js'
 
@@ -108,5 +108,5 @@ export const MODEL_META = {
   layerTrainedOn:
     "348 steady-state layers from the coupons ranked best (60047207, 60076308, 60105609)",
   layerValidation: "Fitted on the steady-state layers of the coupons ranked best in COUPON QUALITY.xlsx. Held out by family: held out 60047207: best 0.0%-0.0%, worst 2.3%-43.9%; held out 60076308: best 3.4%-3.4%, worst 6.7%-51.2%; held out 60105609: best 1.9%-3.8%, worst 6.7%-75.6%.",
-  frameValidation: "Localises deviation within a layer; it does not predict coupon quality — flag rates are 0.9%-1.1% for best-ranked runs and 0.7%-0.7% for worst-ranked.",
+  frameValidation: "Localises deviation within a layer; it does not predict coupon quality. Flag rates are 0.9%-1.1% for best-ranked runs and 0.7%-0.7% for worst-ranked.",
 } as const
