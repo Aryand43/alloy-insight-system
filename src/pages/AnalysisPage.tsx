@@ -673,7 +673,6 @@ export function AnalysisPage() {
                 meltThresholdC={thresholdC ?? thermalIndex?.meltThresholdC ?? 1560}
                 tempMaxC={thermalIndex?.tempRangeC[1]}
                 frameAnomalies={frameAnomalies}
-                quarterTurns={quarterTurns}
                 loading={loadingThermal}
                 error={thermalError}
               />
@@ -689,7 +688,6 @@ export function AnalysisPage() {
                 field={fieldFull}
                 calibration={calibration}
                 thresholdC={thresholdC ?? thermalIndex?.meltThresholdC ?? 1560}
-                quarterTurns={quarterTurns}
                 loading={loadingThermal || !fieldFull}
                 error={fieldError}
               />

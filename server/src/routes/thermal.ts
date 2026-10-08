@@ -381,17 +381,10 @@ thermalRouter.get(
     )
 
     try {
-      // Quarter turns only — the client asks for the turn that puts travel
-      // down the screen, and anything else is rejected rather than resampled.
-      const rawRotate = Number(req.query.rotate ?? 0)
-      const quarterTurns =
-        Number.isFinite(rawRotate) && rawRotate % 90 === 0 ? (rawRotate / 90) % 4 : 0
-
       const png = await renderIndexedFrame(frame, {
         overlay: req.query.overlay === '1',
         showRoi: req.query.roi === '1',
         thresholdCount: threshold.count,
-        quarterTurns,
       })
       res.setHeader('Cache-Control', 'public, max-age=3600')
       res.type('image/png').send(png)

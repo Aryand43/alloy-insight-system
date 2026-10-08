@@ -18,8 +18,6 @@ interface MeltPoolImagesPanelProps {
   tempMaxC?: number
   /** Per-frame deviation for this layer, marked on the scrubber. */
   frameAnomalies?: LayerFrameAnomalies | null
-  /** Quarter turns applied so travel runs down the screen. */
-  quarterTurns?: number
   loading?: boolean
   error?: string | null
 }
@@ -67,18 +65,9 @@ export function MeltPoolImagesPanel({
   meltThresholdC,
   tempMaxC = TEMP_MAX_C,
   frameAnomalies,
-  quarterTurns = 0,
   loading,
   error,
 }: MeltPoolImagesPanelProps) {
-  /*
-   * The server renders the turned image rather than CSS rotating it here: a
-   * quarter turn of the pixel grid is exact, while rotating the element would
-   * have to be scaled back down to fit a landscape panel and would throw away
-   * resolution on the very detail this panel exists to show.
-   */
-  const turned = (url: string) =>
-    quarterTurns ? `${url}${url.includes('?') ? '&' : '?'}rotate=${quarterTurns * 90}` : url
   const [playing, setPlaying] = useState(false)
   const positionRef = useRef(position)
   positionRef.current = position
@@ -96,12 +85,10 @@ export function MeltPoolImagesPanel({
     for (const f of frames) {
       if (f.position > position && f.position <= position + 4) {
         const img = new Image()
-        img.src = turned(f.imageUrl)
+        img.src = f.imageUrl
       }
     }
-    // `turned` only closes over quarterTurns, which is in the dependency list.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frames, position, quarterTurns])
+  }, [frames, position])
 
   if (loading && !current) {
     return (
@@ -123,7 +110,7 @@ export function MeltPoolImagesPanel({
         ) : current ? (
           <>
             <img
-              src={turned(current.imageUrl)}
+              src={current.imageUrl}
               alt={`Melt pool, frame ${position + 1} of ${total}`}
               /* Native frames are 218x164; keep the pixels crisp when upscaled. */
               className="absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
