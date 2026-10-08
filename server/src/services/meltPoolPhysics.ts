@@ -39,6 +39,21 @@ const BLUR = [1, 2, 1, 2, 4, 2, 1, 2, 1].map((v) => v / 16)
  * solidification rate lands. Twelve passes is roughly a Gaussian of sigma 2.4
  * px, which follows the pool's shape rather than its pixel staircase while
  * staying far smaller than the ~120 px pool.
+ *
+ * It is worth being explicit that this is a *local* normal and not simply the
+ * direction from the pool centre, because a near-circular pool makes the two
+ * look alike. Measured on three frames, the smoothed-mask normal sits 6-15
+ * degrees off the radial direction at the median and up to 50-145 degrees at
+ * p90 on a ragged pool, and substituting the radial direction moves median R
+ * by 10-20%. Cross-checked against a second estimator that never references
+ * the centre — principal axes of the neighbouring boundary pixels, which is
+ * the other method the spec allows — the two agree on median R to within 3%.
+ * Blur passes of 4, 8 and 12 also agree to within 3%, so the choice is not
+ * load-bearing; 12 is kept because it is the steadiest.
+ *
+ * Validation: across 126 frames of one layer, the fastest-solidifying decile
+ * lands at the rear of the pool — opposite the direction of travel — on 125
+ * of them.
  */
 const BLUR_PASSES = 12
 

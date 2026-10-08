@@ -18,6 +18,16 @@ function BrandMark({ size = 28 }: { size?: number }) {
   )
 }
 
+/**
+ * What PRISM stands for. Kept in one place because it appears as the setup
+ * heading and as the header's tooltip, and the two must not drift.
+ *
+ * Note this is the product name. "Process Insight" and "Alloy Insight" remain
+ * the names of the two analyses, which is what the run buttons and the mode
+ * pill refer to.
+ */
+export const PRISM_EXPANSION = 'PRedictive Imaging for Solidification and Microstructure'
+
 interface AppShellProps {
   children: ReactNode
   compact?: boolean
@@ -38,16 +48,19 @@ export function AppShell({ children, compact = false, trailing }: AppShellProps)
         >
           <Link
             to="/"
+            title={`PRISM — ${PRISM_EXPANSION}`}
             className="focus-ring flex items-center gap-2.5 no-underline transition-opacity hover:opacity-90"
           >
             <BrandMark size={compact ? 22 : 30} />
+            {/* The acronym alone in the header: the full name would crowd out
+                the build summary that sits beside it on the analysis page. */}
             <span
               className={[
                 'font-semibold tracking-tight text-steel-50',
                 compact ? 'text-sm' : 'text-base sm:text-lg',
               ].join(' ')}
             >
-              Process Insight
+              PRISM
             </span>
           </Link>
           {trailing}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { BoundaryPoint } from '../../domain/types'
 import { metricColor, metricGradientCss } from '../../domain/metricColor'
+import { rotateHeading, rotateQuarterTurns } from '../../domain/orientation'
 
 export type BoundaryMetric = 'none' | 'gradient' | 'solidification'
 
@@ -15,6 +16,8 @@ interface BoundaryMapProps {
   /** Dims the leading edge, where solidification rate has no meaning. */
   trailingOnly?: boolean
   height?: string
+  /** Quarter turns applied so the direction of travel runs down the screen. */
+  quarterTurns?: number
 }
 
 function valueOf(point: BoundaryPoint, metric: BoundaryMetric): number | null {
@@ -41,19 +44,31 @@ export function BoundaryMap({
   unit,
   trailingOnly,
   height = 'viz-secondary',
+  quarterTurns = 0,
 }: BoundaryMapProps) {
+  // Rotation is applied to the plotted coordinates, not to the measurements:
+  // every value was computed in the camera's frame and is unchanged by it.
+  const placed = useMemo(
+    () =>
+      points.map((p) => {
+        const [x, y] = rotateQuarterTurns(p.xMm, p.yMm, quarterTurns)
+        return { point: p, x, y }
+      }),
+    [points, quarterTurns],
+  )
+
   const view = useMemo(() => {
-    if (!points.length) return null
-    const xs = points.map((p) => p.xMm)
-    const ys = points.map((p) => p.yMm)
+    if (!placed.length) return null
+    const xs = placed.map((p) => p.x)
+    const ys = placed.map((p) => p.y)
     const pad = 0.35
     const minX = Math.min(...xs) - pad
     const maxX = Math.max(...xs) + pad
     const minY = Math.min(...ys) - pad
     const maxY = Math.max(...ys) + pad
 
-    const values = points
-      .map((p) => valueOf(p, metric))
+    const values = placed
+      .map((p) => valueOf(p.point, metric))
       .filter((v): v is number => v !== null)
       .sort((a, b) => a - b)
 
@@ -63,7 +78,9 @@ export function BoundaryMap({
     const hi = domain?.[1] ?? values[Math.floor(values.length * 0.95)] ?? 1
 
     return { minX, maxX, minY, maxY, lo, hi }
-  }, [points, metric, domain])
+  }, [placed, metric, domain])
+
+  const heading = rotateHeading(headingDeg, quarterTurns)
 
   if (!view) {
     return (
@@ -77,7 +94,7 @@ export function BoundaryMap({
   const depth = view.maxY - view.minY
   // Arrow sits top-left, in the same mm space as the points.
   const arrowLength = Math.min(width, depth) * 0.22
-  const radians = (headingDeg * Math.PI) / 180
+  const radians = (heading * Math.PI) / 180
   const ax = view.minX + width * 0.14
   const ay = view.minY + depth * 0.14
   const bx = ax + Math.cos(radians) * arrowLength
@@ -98,7 +115,7 @@ export function BoundaryMap({
               : `Melt-pool boundary coloured by ${metric === 'gradient' ? 'thermal gradient' : 'solidification rate'}`
           }
         >
-          {points.map((p, i) => {
+          {placed.map(({ point: p, x, y }, i) => {
             const value = valueOf(p, metric)
             const dimmed = trailingOnly && !p.trailing
             const fill =
@@ -112,8 +129,8 @@ export function BoundaryMap({
             return (
               <circle
                 key={`${p.xMm}:${p.yMm}:${i}`}
-                cx={p.xMm}
-                cy={p.yMm}
+                cx={x}
+                cy={y}
                 r={Math.max(width, depth) / 110}
                 fill={fill}
                 opacity={dimmed ? 0.18 : 0.95}

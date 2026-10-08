@@ -5,17 +5,25 @@ import { getMaterialById, MATERIALS } from '../domain/materials'
 const defaultMaterial = MATERIALS[0]
 
 /**
- * The machine's own logged melt threshold, and the default for the
- * segmentation threshold the operator can override in setup. Starting here
- * means an untouched form reproduces the machine's own melt-pool detection
- * exactly, and any other value is a deliberate choice.
+ * The threshold the machine's own controller used, kept for reference only.
+ *
+ * The boundary this app tracks is the alloy's melting temperature, not this:
+ * the melt pool is bounded by where the metal freezes, and every melt-pool
+ * image, the thermal gradient and the solidification rate are all taken from
+ * that same contour. 1560 °C is what the DMG MORI controller happened to
+ * count pixels above, and the panels still show its logged figures alongside
+ * so the two can be compared.
  */
 export const MACHINE_MELT_THRESHOLD_C = 1560
 
 export interface SetupFormState {
   materialId: string
   processType: ProcessType
-  /** Segmentation threshold in °C — pixels above it count as melt pool. */
+  /**
+   * Melting temperature in °C. This is the tracked melt-pool boundary: pixels
+   * hotter than it are inside the pool, and the gradient and solidification
+   * rate are measured on the contour it draws.
+   */
   meltingTempC: number
   dataSourceName: string
   configName: string
@@ -41,7 +49,7 @@ const initial = {
   materialId: defaultMaterial.id,
   // Every coupon in the corpus was built by laser powder DED.
   processType: 'laser_powder_ded' as ProcessType,
-  meltingTempC: MACHINE_MELT_THRESHOLD_C,
+  meltingTempC: defaultMaterial.defaultMeltTempC,
   dataSourceName: '',
   configName: '',
   sampleId: '',
@@ -54,9 +62,18 @@ export const useSetupStore = create<SetupFormState>((set, get) => ({
   setSampleId: (sampleId) => set({ sampleId }),
   setPassFilter: (passFilter) => set({ passFilter }),
   setThermalOnly: (thermalOnly) => set({ thermalOnly }),
-  // Changing material no longer rewrites the threshold: the threshold is the
-  // operator's segmentation choice, not a property of the alloy.
-  setMaterialId: (materialId) => set({ materialId }),
+  /*
+   * Changing the alloy moves the boundary with it — the melting temperature is
+   * a property of the material, so it would be wrong to keep 316L's value
+   * after switching to titanium. An operator who has typed their own figure
+   * can simply type it again; silently carrying it across alloys would be the
+   * more dangerous default.
+   */
+  setMaterialId: (materialId) =>
+    set({
+      materialId,
+      meltingTempC: getMaterialById(materialId)?.defaultMeltTempC ?? get().meltingTempC,
+    }),
   setProcessType: (processType) => set({ processType }),
   setMeltingTempC: (meltingTempC) => set({ meltingTempC }),
   setDataSourceName: (dataSourceName) => set({ dataSourceName }),
@@ -69,8 +86,9 @@ export const useSetupStore = create<SetupFormState>((set, get) => ({
       materialLabel: mat?.label ?? s.materialId,
       processType: s.processType,
       meltingTempC: s.meltingTempC,
-      // What the server segments at. Sent on every session so the threshold
-      // the operator chose is the one the images and numbers are made with.
+      // What the server segments at. Sent on every session so the melting
+      // temperature set here is the boundary the images, the thermal gradient
+      // and the solidification rate are all taken from.
       thresholdC: s.meltingTempC,
       dataSourceName: s.dataSourceName || s.sampleId || 'demo_sequence.zip',
       // Empty lets the server name it from the build, e.g. "10-pass · R5".

@@ -50,6 +50,15 @@ export function normaliseConfig(
       Number.isFinite(config.meltingTempC) && (config.meltingTempC as number) > 0
         ? (config.meltingTempC as number)
         : material.defaultMeltTempC,
+    /*
+      * The tracked boundary follows the melting temperature. It is carried
+      * explicitly as well so a session reports the contour it was created
+      * with, rather than silently reverting to the machine's own threshold.
+      */
+    thresholdC:
+      Number.isFinite(config.thresholdC) && (config.thresholdC as number) > 0
+        ? (config.thresholdC as number)
+        : undefined,
     dataSourceName: entry.id,
     configName: config.configName || `${entry.passes}-pass · R${entry.run}`,
     sampleId: entry.id,

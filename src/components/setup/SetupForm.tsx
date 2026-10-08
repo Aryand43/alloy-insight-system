@@ -306,14 +306,12 @@ export function SetupForm() {
           </Field>
 
           <Field
-            label="Melt-pool threshold"
+            label="Melting temperature"
             htmlFor="melt-temp"
             hint={
-              meltingTempC === MACHINE_MELT_THRESHOLD_C
-                ? `Pixels hotter than this are counted as melt pool. ${MACHINE_MELT_THRESHOLD_C} °C is the machine’s own logged threshold${
-                    materialMeltC ? ` · ${selectedMaterialLabel} melts near ${materialMeltC} °C` : ''
-                  }.`
-                : `Your threshold, not the machine’s ${MACHINE_MELT_THRESHOLD_C} °C — segmentation and every melt-pool number will use ${meltingTempC} °C.`
+              materialMeltC !== null && meltingTempC === materialMeltC
+                ? `The tracked melt-pool boundary: pixels hotter than this are inside the pool, and the melt-pool images, thermal gradient and solidification rate are all measured on that contour. ${materialMeltC} °C is ${selectedMaterialLabel}; the machine’s own controller counted above ${MACHINE_MELT_THRESHOLD_C} °C.`
+                : `Your value, not ${selectedMaterialLabel}’s ${materialMeltC ?? MACHINE_MELT_THRESHOLD_C} °C — the boundary, the melt-pool images, the thermal gradient and the solidification rate will all use ${meltingTempC} °C.`
             }
             error={tempError ?? undefined}
           >
@@ -332,13 +330,13 @@ export function SetupForm() {
                 °C
               </span>
             </div>
-            {meltingTempC !== MACHINE_MELT_THRESHOLD_C && (
+            {materialMeltC !== null && meltingTempC !== materialMeltC && (
               <button
                 type="button"
-                onClick={() => setMeltingTempC(MACHINE_MELT_THRESHOLD_C)}
+                onClick={() => setMeltingTempC(materialMeltC)}
                 className="focus-ring mt-2 self-start text-xs text-steel-400 underline decoration-dotted underline-offset-2 transition-colors hover:text-steel-200"
               >
-                Reset to the machine’s {MACHINE_MELT_THRESHOLD_C} °C
+                Reset to {selectedMaterialLabel} · {materialMeltC} °C
               </button>
             )}
           </Field>

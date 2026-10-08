@@ -3,6 +3,7 @@ import type { Calibration, ThermalField } from '../../api/thermalField'
 import { TEMP_MAX_C, TEMP_MIN_C, celsiusToRgb } from '../../domain/thermalColor'
 import { SR_MODEL } from '../../domain/srModel'
 import { superResolve, type Grid } from '../../domain/superResolution'
+import { rotateQuarterTurns } from '../../domain/orientation'
 
 /** Margin left around the melt pool, in native camera pixels. */
 const MARGIN = 8
@@ -15,6 +16,8 @@ interface SuperResolutionPanelProps {
   calibration: Calibration | null
   /** Threshold the pool is bounded by — the operator's when they set one. */
   thresholdC: number
+  /** Quarter turns applied so travel runs down the screen. */
+  quarterTurns?: number
   loading?: boolean
   error?: string | null
 }
@@ -125,6 +128,29 @@ function paintGrid(canvas: HTMLCanvasElement | null, grid: Grid): void {
   ctx.putImageData(image, 0, 0)
 }
 
+/** Turns a grid by whole quarter turns. Exact — no sample is interpolated. */
+function rotateGrid(grid: Grid, turns: number): Grid {
+  const t = (((turns % 4) + 4) % 4)
+  if (t === 0) return grid
+  const swapped = t === 1 || t === 3
+  const width = swapped ? grid.height : grid.width
+  const height = swapped ? grid.width : grid.height
+  const values = new Float32Array(width * height)
+
+  // Rotating about the centre, in the same screen-clockwise sense as the maps.
+  const cx = (grid.width - 1) / 2
+  const cy = (grid.height - 1) / 2
+  const ox = (width - 1) / 2
+  const oy = (height - 1) / 2
+  for (let r = 0; r < grid.height; r++) {
+    for (let c = 0; c < grid.width; c++) {
+      const [x, y] = rotateQuarterTurns(c - cx, r - cy, t)
+      values[Math.round(y + oy) * width + Math.round(x + ox)] = grid.values[r * grid.width + c]
+    }
+  }
+  return { values, width, height }
+}
+
 /** Nearest-neighbour blow-up: the raw pixels, honestly blocky. */
 function nearestGrid(w: Window): Grid {
   const width = w.cols * SCALE
@@ -153,6 +179,7 @@ export function SuperResolutionPanel({
   field,
   calibration,
   thresholdC,
+  quarterTurns = 0,
   loading,
   error,
 }: SuperResolutionPanelProps) {
@@ -179,9 +206,10 @@ export function SuperResolutionPanel({
 
   useEffect(() => {
     if (!window || !restored) return
-    paintGrid(rawRef.current, nearestGrid(window))
-    paintGrid(upRef.current, restored)
-  }, [window, restored])
+    // Reconstruction runs in the camera's frame; only the result is turned.
+    paintGrid(rawRef.current, rotateGrid(nearestGrid(window), quarterTurns))
+    paintGrid(upRef.current, rotateGrid(restored, quarterTurns))
+  }, [window, restored, quarterTurns])
 
   if (error) {
     return (
@@ -199,8 +227,11 @@ export function SuperResolutionPanel({
     )
   }
 
-  const widthMm = (window.cols * field.stride * 0.0297).toFixed(2)
-  const heightMm = (window.rows * field.stride * 0.0297).toFixed(2)
+  // Reported as shown: a quarter turn swaps which extent reads as the width.
+  const across = quarterTurns % 2 === 0 ? window.cols : window.rows
+  const down = quarterTurns % 2 === 0 ? window.rows : window.cols
+  const widthMm = (across * field.stride * 0.0297).toFixed(2)
+  const heightMm = (down * field.stride * 0.0297).toFixed(2)
 
   return (
     <div className="flex flex-col gap-2">
@@ -209,12 +240,12 @@ export function SuperResolutionPanel({
           {
             ref: rawRef,
             title: 'Raw',
-            note: `${window.cols}×${window.rows} px`,
+            note: `${across}×${down} px`,
           },
           {
             ref: upRef,
             title: `Super resolution ${SCALE}×`,
-            note: `${window.cols * SCALE}×${window.rows * SCALE} px`,
+            note: `${across * SCALE}×${down * SCALE} px`,
           },
         ].map((pane) => (
           <div

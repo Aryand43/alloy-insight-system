@@ -5,6 +5,8 @@ interface PhysicsPanelProps {
   physics: MeltPoolPhysics | null
   loading?: boolean
   error?: string | null
+  /** Quarter turns applied so travel runs down the screen. */
+  quarterTurns?: number
 }
 
 function Shell({
@@ -42,7 +44,13 @@ export function MeltPoolBoundaryPanel(props: PhysicsPanelProps) {
     <Shell {...props}>
       {(p) => (
         <div className="flex flex-col gap-2">
-          <BoundaryMap points={p.points} metric="none" headingDeg={p.travel.headingDeg} unit="" />
+          <BoundaryMap
+            points={p.points}
+            metric="none"
+            headingDeg={p.travel.headingDeg}
+            unit=""
+            quarterTurns={props.quarterTurns}
+          />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-300">
             <span className="inline-flex items-center gap-1.5">
               <span aria-hidden className="h-2 w-2 rounded-full bg-melt-boundary" /> Trailing edge
@@ -60,8 +68,8 @@ export function MeltPoolBoundaryPanel(props: PhysicsPanelProps) {
           </div>
           <p className="text-xs text-steel-400">
             Boundary at{' '}
-            <span className="font-mono text-steel-200">{p.thresholdC.toFixed(0)} °C</span>{' '}
-            {p.thresholdSource === 'user' ? '(set in setup)' : '(machine log)'} · travel{' '}
+            <span className="readout text-steel-200">{p.thresholdC.toFixed(0)} °C</span>{' '}
+            {p.thresholdSource === 'user' ? '(melting temperature)' : '(machine log)'} · travel{' '}
             <span className="font-mono text-steel-200">{p.travel.speedMmPerS.toFixed(1)} mm/s</span>{' '}
             {p.travel.speedSource === 'measured' ? 'from the machine log' : '(nominal — no log)'}
           </p>
@@ -90,6 +98,7 @@ export function ThermalGradientPanel(props: PhysicsPanelProps) {
             metric="gradient"
             headingDeg={p.travel.headingDeg}
             unit="°C/mm"
+            quarterTurns={props.quarterTurns}
           />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-400">
             <span title="Median across all boundary points">
@@ -143,6 +152,7 @@ export function SolidificationRatePanel(props: PhysicsPanelProps) {
             headingDeg={p.travel.headingDeg}
             unit="mm/s"
             trailingOnly
+            quarterTurns={props.quarterTurns}
           />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-400">
             <span title="Median across the trailing edge">

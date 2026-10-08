@@ -48,6 +48,7 @@ import {
   ThermalGradientPanel,
 } from '../components/analysis/PhysicsPanels'
 import { getMeltPoolPhysics } from '../api/physics'
+import { quarterTurnsForDown } from '../domain/orientation'
 import { AnomalyBanner } from '../components/analysis/AnomalyBanner'
 import { BuildBriefStrip } from '../components/analysis/BuildBriefStrip'
 import { QueryPanel } from '../components/analysis/QueryPanel'
@@ -115,8 +116,12 @@ export function AnalysisPage() {
   const navigate = useNavigate()
   const mode = session?.config.mode === 'alloy' ? 'alloy' : 'process'
   const WINDOW = 24
-  /** The threshold the operator set in setup, if they changed it. */
-  const thresholdC = session?.config.thresholdC ?? null
+  /*
+   * The contour everything is measured on: the alloy's melting temperature.
+   * `thresholdC` carries it explicitly; `meltingTempC` is the same value and
+   * is the fallback for any session stored before the two were linked.
+   */
+  const thresholdC = session?.config.thresholdC ?? session?.config.meltingTempC ?? null
 
   useEffect(() => {
     if (!sessionId) return
@@ -458,6 +463,14 @@ export function AnalysisPage() {
 
   const activeLayer = thermalLayers.find((l) => l.layer === thermalLayer) ?? null
 
+  /*
+   * Every melt-pool view is turned so the direction of travel runs down the
+   * screen, matching how solidification figures are drawn. The machine rasters
+   * along X and reverses each pass, so the turn is per frame and comes from
+   * the travel vector the physics already measured.
+   */
+  const quarterTurns = physics ? quarterTurnsForDown(physics.travel.headingDeg) : 0
+
   /** Flagged layers, keyed for the chart and the layer rail. */
   const flagged = useMemo(() => {
     const map = new Map<number, AnomalySeverity>()
@@ -581,10 +594,10 @@ export function AnalysisPage() {
               {buildShape && <span className="text-steel-300">{buildShape}</span>}
               {mode === 'alloy' && thermalIndex && (
                 <SummaryItem
-                  label="Melt threshold"
+                  label="Melting temp"
                   value={`${(thresholdC ?? thermalIndex.meltThresholdC).toFixed(0)} °C`}
                   mono
-                  note={thresholdC ? '(set in setup)' : '(machine log)'}
+                  note={thresholdC ? '(tracked boundary)' : '(machine log)'}
                 />
               )}
             </>
@@ -652,6 +665,7 @@ export function AnalysisPage() {
                 meltThresholdC={thresholdC ?? thermalIndex?.meltThresholdC ?? 1560}
                 tempMaxC={thermalIndex?.tempRangeC[1]}
                 frameAnomalies={frameAnomalies}
+                quarterTurns={quarterTurns}
                 loading={loadingThermal}
                 error={thermalError}
               />
@@ -667,6 +681,7 @@ export function AnalysisPage() {
                 field={fieldFull}
                 calibration={calibration}
                 thresholdC={thresholdC ?? thermalIndex?.meltThresholdC ?? 1560}
+                quarterTurns={quarterTurns}
                 loading={loadingThermal || !fieldFull}
                 error={fieldError}
               />
@@ -678,6 +693,7 @@ export function AnalysisPage() {
             {mode === 'alloy' ? (
               <MeltPoolBoundaryPanel
                 physics={physics}
+                quarterTurns={quarterTurns}
                 loading={loadingThermal || (!physics && !physicsError)}
                 error={physicsError}
               />
@@ -696,6 +712,7 @@ export function AnalysisPage() {
               <Panel title="Thermal Gradient">
                 <ThermalGradientPanel
                   physics={physics}
+                  quarterTurns={quarterTurns}
                   loading={loadingThermal || (!physics && !physicsError)}
                   error={physicsError}
                 />
@@ -703,6 +720,7 @@ export function AnalysisPage() {
               <Panel title="Solidification Rate">
                 <SolidificationRatePanel
                   physics={physics}
+                  quarterTurns={quarterTurns}
                   loading={loadingThermal || (!physics && !physicsError)}
                   error={physicsError}
                 />

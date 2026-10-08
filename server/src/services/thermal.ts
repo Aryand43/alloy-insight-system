@@ -231,6 +231,52 @@ export interface RenderOptions {
   showRoi?: boolean
   /** Overrides the machine's threshold when the operator set their own. */
   thresholdCount?: number
+  /**
+   * Quarter turns applied to the finished image so the direction of travel
+   * runs down the screen. Presentation only — segmentation, statistics and
+   * boundary physics are all computed before this, in the camera's frame.
+   */
+  quarterTurns?: number
+}
+
+/** Rotates an RGB buffer by whole quarter turns. Exact: no pixel is resampled. */
+function rotateRgb(
+  rgb: Uint8Array,
+  width: number,
+  height: number,
+  turns: number,
+): { rgb: Uint8Array; width: number; height: number } {
+  const t = (((turns % 4) + 4) % 4)
+  if (t === 0) return { rgb, width, height }
+
+  const swapped = t === 1 || t === 3
+  const outW = swapped ? height : width
+  const outH = swapped ? width : height
+  const out = new Uint8Array(outW * outH * 3)
+
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      let or_: number
+      let oc: number
+      if (t === 1) {
+        // Clockwise: the top row becomes the right-hand column.
+        or_ = c
+        oc = height - 1 - r
+      } else if (t === 2) {
+        or_ = height - 1 - r
+        oc = width - 1 - c
+      } else {
+        or_ = width - 1 - c
+        oc = r
+      }
+      const from = (r * width + c) * 3
+      const to = (or_ * outW + oc) * 3
+      out[to] = rgb[from]
+      out[to + 1] = rgb[from + 1]
+      out[to + 2] = rgb[from + 2]
+    }
+  }
+  return { rgb: out, width: outW, height: outH }
 }
 
 export function renderFrame(
@@ -312,7 +358,8 @@ export function renderFrame(
     }
   }
 
-  return encodePng(rgb, width, height)
+  const turned = rotateRgb(rgb, width, height, options.quarterTurns ?? 0)
+  return encodePng(turned.rgb, turned.width, turned.height)
 }
 
 /**
@@ -347,7 +394,7 @@ export async function renderIndexedFrame(
   options: RenderOptions,
 ): Promise<Buffer> {
   const cut = options.thresholdCount ?? ref.thresholdCount
-  const key = `${ref.file}|${options.overlay ? 1 : 0}|${options.showRoi ? 1 : 0}|${cut}`
+  const key = `${ref.file}|${options.overlay ? 1 : 0}|${options.showRoi ? 1 : 0}|${cut}|${options.quarterTurns ?? 0}`
   const hit = pngCache.get(key)
   if (hit) {
     pngCache.delete(key)
