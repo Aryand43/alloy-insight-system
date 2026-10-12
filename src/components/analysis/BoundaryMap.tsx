@@ -1,7 +1,6 @@
 import { useMemo, useRef } from 'react'
 import type { BoundaryPoint } from '../../domain/types'
 import { metricColor, metricGradientCss } from '../../domain/metricColor'
-import { rotateHeading, rotateQuarterTurns } from '../../domain/orientation'
 
 export type BoundaryMetric = 'none' | 'gradient' | 'solidification'
 
@@ -16,8 +15,6 @@ interface BoundaryMapProps {
   /** Dims the leading edge, where solidification rate has no meaning. */
   trailingOnly?: boolean
   height?: string
-  /** Quarter turns applied so the direction of travel runs down the screen. */
-  quarterTurns?: number
   /** Index into `points` of the probed point, shared across the three maps. */
   selectedIndex?: number | null
   onSelectPoint?: (index: number) => void
@@ -47,20 +44,19 @@ export function BoundaryMap({
   unit,
   trailingOnly,
   height = 'viz-secondary',
-  quarterTurns = 0,
   selectedIndex = null,
   onSelectPoint,
 }: BoundaryMapProps) {
   const svgRef = useRef<SVGSVGElement>(null)
-  // Rotation is applied to the plotted coordinates, not to the measurements:
-  // every value was computed in the camera's frame and is unchanged by it.
+  /*
+   * Plotted in the camera's own frame, the same orientation the melt-pool
+   * image is shown in. Turning the contour to put travel down the screen made
+   * it disagree with the image beside it by 90 degrees, which made the
+   * trailing edge look like it was on the wrong side of the pool.
+   */
   const placed = useMemo(
-    () =>
-      points.map((p) => {
-        const [x, y] = rotateQuarterTurns(p.xMm, p.yMm, quarterTurns)
-        return { point: p, x, y }
-      }),
-    [points, quarterTurns],
+    () => points.map((p) => ({ point: p, x: p.xMm, y: p.yMm })),
+    [points],
   )
 
   const view = useMemo(() => {
@@ -85,8 +81,6 @@ export function BoundaryMap({
 
     return { minX, maxX, minY, maxY, lo, hi }
   }, [placed, metric, domain])
-
-  const heading = rotateHeading(headingDeg, quarterTurns)
 
   if (!view) {
     return (
@@ -145,7 +139,7 @@ export function BoundaryMap({
   const selected = selectedIndex !== null ? placed[selectedIndex] : undefined
   // Arrow sits top-left, in the same mm space as the points.
   const arrowLength = Math.min(width, depth) * 0.22
-  const radians = (heading * Math.PI) / 180
+  const radians = (headingDeg * Math.PI) / 180
   const ax = view.minX + width * 0.14
   const ay = view.minY + depth * 0.14
   const bx = ax + Math.cos(radians) * arrowLength

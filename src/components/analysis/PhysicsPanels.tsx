@@ -1,13 +1,10 @@
 import type { BoundaryPoint, MeltPoolPhysics } from '../../domain/types'
 import { BoundaryMap } from './BoundaryMap'
-import { rotateQuarterTurns } from '../../domain/orientation'
 
 interface PhysicsPanelProps {
   physics: MeltPoolPhysics | null
   loading?: boolean
   error?: string | null
-  /** Quarter turns applied so travel runs down the screen. */
-  quarterTurns?: number
   /** Probed contour point, shared by all three maps. */
   selectedIndex?: number | null
   onSelectPoint?: (index: number) => void
@@ -24,12 +21,10 @@ function ProbeReadout({
   point,
   index,
   total,
-  quarterTurns = 0,
 }: {
   point: BoundaryPoint | undefined
   index: number | null
   total: number
-  quarterTurns?: number
 }) {
   if (!point || index === null) {
     return (
@@ -42,18 +37,9 @@ function ProbeReadout({
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[color:var(--border-hairline)] pt-2 text-xs">
       <span className="eyebrow text-accent-300">Point {index + 1} of {total}</span>
-      {/* Position as shown: the view is turned, so camera-frame coordinates
-          would not match where the probe sits on screen. */}
-      <span className="text-steel-400" title="Position relative to the pool centre, as displayed">
-        at{' '}
-        <span className="readout text-steel-200">
-          {rotateQuarterTurns(point.xMm, point.yMm, quarterTurns)[0].toFixed(2)}
-        </span>
-        ,{' '}
-        <span className="readout text-steel-200">
-          {rotateQuarterTurns(point.xMm, point.yMm, quarterTurns)[1].toFixed(2)}
-        </span>{' '}
-        mm
+      <span className="text-steel-400" title="Position relative to the pool centre">
+        at <span className="readout text-steel-200">{point.xMm.toFixed(2)}</span>,{' '}
+        <span className="readout text-steel-200">{point.yMm.toFixed(2)}</span> mm
       </span>
       <span className="text-steel-400">
         G <span className="readout text-steel-100">{Math.round(point.gradientCPerMm).toLocaleString('en-US')}</span> °C/mm
@@ -112,7 +98,6 @@ export function MeltPoolBoundaryPanel(props: PhysicsPanelProps) {
             metric="none"
             headingDeg={p.travel.headingDeg}
             unit=""
-            quarterTurns={props.quarterTurns}
             selectedIndex={props.selectedIndex}
             onSelectPoint={props.onSelectPoint}
           />
@@ -120,7 +105,6 @@ export function MeltPoolBoundaryPanel(props: PhysicsPanelProps) {
             point={props.selectedIndex === null || props.selectedIndex === undefined ? undefined : p.points[props.selectedIndex]}
             index={props.selectedIndex ?? null}
             total={p.points.length}
-            quarterTurns={props.quarterTurns}
           />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-300">
             <span className="inline-flex items-center gap-1.5">
@@ -141,7 +125,14 @@ export function MeltPoolBoundaryPanel(props: PhysicsPanelProps) {
             Boundary at{' '}
             <span className="readout text-steel-200">{p.thresholdC.toFixed(0)} °C</span>{' '}
             {p.thresholdSource === 'user' ? '(melting temperature)' : '(machine log)'} · travel{' '}
-            <span className="font-mono text-steel-200">{p.travel.speedMmPerS.toFixed(1)} mm/s</span>{' '}
+            <span className="readout text-steel-200">{p.travel.speedMmPerS.toFixed(1)} mm/s</span>{' '}
+            at{' '}
+            <span
+              className="readout text-steel-200"
+              title="Direction the nozzle was moving, taken from the change in logged machine X and Y across the neighbouring frames"
+            >
+              {p.travel.headingDeg.toFixed(0)}°
+            </span>{' '}
             {p.travel.speedSource === 'measured' ? 'from the machine log' : '(nominal, no log)'}
           </p>
         </div>
@@ -169,7 +160,6 @@ export function ThermalGradientPanel(props: PhysicsPanelProps) {
             metric="gradient"
             headingDeg={p.travel.headingDeg}
             unit="°C/mm"
-            quarterTurns={props.quarterTurns}
             selectedIndex={props.selectedIndex}
             onSelectPoint={props.onSelectPoint}
           />
@@ -177,7 +167,6 @@ export function ThermalGradientPanel(props: PhysicsPanelProps) {
             point={props.selectedIndex === null || props.selectedIndex === undefined ? undefined : p.points[props.selectedIndex]}
             index={props.selectedIndex ?? null}
             total={p.points.length}
-            quarterTurns={props.quarterTurns}
           />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-400">
             <span title="Median across all boundary points">
@@ -231,7 +220,6 @@ export function SolidificationRatePanel(props: PhysicsPanelProps) {
             headingDeg={p.travel.headingDeg}
             unit="mm/s"
             trailingOnly
-            quarterTurns={props.quarterTurns}
             selectedIndex={props.selectedIndex}
             onSelectPoint={props.onSelectPoint}
           />
@@ -239,7 +227,6 @@ export function SolidificationRatePanel(props: PhysicsPanelProps) {
             point={props.selectedIndex === null || props.selectedIndex === undefined ? undefined : p.points[props.selectedIndex]}
             index={props.selectedIndex ?? null}
             total={p.points.length}
-            quarterTurns={props.quarterTurns}
           />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-400">
             <span title="Median across the trailing edge">

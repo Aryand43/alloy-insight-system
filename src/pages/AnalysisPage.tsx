@@ -48,7 +48,7 @@ import {
   ThermalGradientPanel,
 } from '../components/analysis/PhysicsPanels'
 import { getMeltPoolPhysics } from '../api/physics'
-import { quarterTurnsForDown } from '../domain/orientation'
+import { SolidificationMap } from '../components/analysis/SolidificationMap'
 import { AnomalyBanner } from '../components/analysis/AnomalyBanner'
 import { BuildBriefStrip } from '../components/analysis/BuildBriefStrip'
 import { QueryPanel } from '../components/analysis/QueryPanel'
@@ -477,7 +477,6 @@ export function AnalysisPage() {
    * along X and reverses each pass, so the turn is per frame and comes from
    * the travel vector the physics already measured.
    */
-  const quarterTurns = physics ? quarterTurnsForDown(physics.travel.headingDeg) : 0
 
   /** Flagged layers, keyed for the chart and the layer rail. */
   const flagged = useMemo(() => {
@@ -534,7 +533,7 @@ export function AnalysisPage() {
           err,
           mode === 'alloy'
             ? 'Could not open Process Insight for this build.'
-            : 'This build has no thermal frames, so Alloy Insight cannot open it.',
+            : 'This build has no thermal frames, so Microstructure Insight cannot open it.',
         ),
       )
     } finally {
@@ -590,7 +589,7 @@ export function AnalysisPage() {
           ) : (
             <>
               <span className="rounded-sm border border-accent-600/50 bg-accent-500/12 px-2 py-0.5 text-xs font-semibold tracking-tight text-accent-300">
-                {mode === 'alloy' ? 'Alloy Insight' : 'Process Insight'}
+                {mode === 'alloy' ? 'Microstructure Insight' : 'Process Insight'}
               </span>
               <SummaryItem
                 label="Build"
@@ -699,7 +698,6 @@ export function AnalysisPage() {
             {mode === 'alloy' ? (
               <MeltPoolBoundaryPanel
                 physics={physics}
-                quarterTurns={quarterTurns}
                 loading={loadingThermal || (!physics && !physicsError)}
                 error={physicsError}
                 selectedIndex={probeIndex}
@@ -720,7 +718,6 @@ export function AnalysisPage() {
               <Panel title="Thermal Gradient">
                 <ThermalGradientPanel
                   physics={physics}
-                  quarterTurns={quarterTurns}
                   loading={loadingThermal || (!physics && !physicsError)}
                   error={physicsError}
                   selectedIndex={probeIndex}
@@ -730,24 +727,30 @@ export function AnalysisPage() {
               <Panel title="Solidification Rate">
                 <SolidificationRatePanel
                   physics={physics}
-                  quarterTurns={quarterTurns}
                   loading={loadingThermal || (!physics && !physicsError)}
                   error={physicsError}
                   selectedIndex={probeIndex}
                   onSelectPoint={setProbeIndex}
                 />
               </Panel>
-              <div className="lg:col-span-2">
-                <Panel title="Temperature Distribution">
-                  <ThermalSurface3D
-                    field={field}
-                    calibration={calibration}
-                    meltThresholdC={thresholdC ?? thermalIndex?.meltThresholdC ?? 1560}
-                    loading={loadingThermal || !field}
-                    error={fieldError}
-                  />
-                </Panel>
-              </div>
+              <Panel title="Solidification Map (G vs R)">
+                <SolidificationMap
+                  physics={physics}
+                  loading={loadingThermal || (!physics && !physicsError)}
+                  error={physicsError}
+                  selectedIndex={probeIndex}
+                  onSelectPoint={setProbeIndex}
+                />
+              </Panel>
+              <Panel title="Temperature Distribution">
+                <ThermalSurface3D
+                  field={field}
+                  calibration={calibration}
+                  meltThresholdC={thresholdC ?? thermalIndex?.meltThresholdC ?? 1560}
+                  loading={loadingThermal || !field}
+                  error={fieldError}
+                />
+              </Panel>
             </>
           )}
         </div>

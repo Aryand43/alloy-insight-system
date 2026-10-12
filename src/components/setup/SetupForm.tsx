@@ -116,8 +116,8 @@ export function SetupForm() {
     !selected || selected.hasThermal
       ? null
       : selected.hasRawFrames
-        ? 'Alloy Insight is unavailable for this build: its frames have no position log, so they can’t be matched to layers.'
-        : 'Alloy Insight is unavailable for this build: no thermal-camera frames were recorded.'
+        ? 'Microstructure Insight is unavailable for this build: its frames have no position log, so they can’t be matched to layers.'
+        : 'Microstructure Insight is unavailable for this build: no thermal-camera frames were recorded.'
 
   async function run(mode: AnalysisMode) {
     setError(null)
@@ -263,7 +263,7 @@ export function SetupForm() {
               disabled={busy || !sampleId || !selected?.hasThermal}
               title={alloyUnavailable ?? undefined}
             >
-              {submitting === 'alloy' ? 'Starting…' : 'Alloy Insight'}
+              {submitting === 'alloy' ? 'Starting…' : 'Microstructure Insight'}
             </Button>
             <p className="text-xs leading-relaxed text-steel-500">
               Melt-pool images segmented from thermal-camera frames

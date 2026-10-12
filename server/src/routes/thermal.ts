@@ -37,7 +37,7 @@ const WINDOW_MAX = 64
 function requireThermal(entry: CatalogEntry): void {
   if (!entry.hasThermal) {
     throw new HttpError(
-      `${entry.id} has no thermal frames. Only builds with both raw Frames/ and Data.dat can run Alloy Insight.`,
+      `${entry.id} has no thermal frames. Only builds with both raw Frames/ and Data.dat can run Microstructure Insight.`,
       400,
     )
   }

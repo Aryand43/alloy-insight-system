@@ -22,7 +22,7 @@ function BrandMark({ size = 28 }: { size?: number }) {
  * What PRISM stands for. Kept in one place because it appears as the setup
  * heading and as the header's tooltip, and the two must not drift.
  *
- * Note this is the product name. "Process Insight" and "Alloy Insight" remain
+ * Note this is the product name. "Process Insight" and "Microstructure Insight" remain
  * the names of the two analyses, which is what the run buttons and the mode
  * pill refer to.
  */

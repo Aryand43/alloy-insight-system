@@ -48,7 +48,7 @@ sessionsRouter.post('/sessions', async (req, res) => {
   // Don't trust the UI alone to gate this.
   if (config.mode === 'alloy' && !entry.hasThermal) {
     throw new HttpError(
-      `${entry.id} has no thermal frames, so Alloy Insight cannot run on it.`,
+      `${entry.id} has no thermal frames, so Microstructure Insight cannot run on it.`,
       400,
     )
   }
