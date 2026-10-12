@@ -14,8 +14,12 @@ export type SessionStatus = 'pending' | 'ready' | 'failed'
  * - `process` — per-layer spreadsheet summaries; works for all 26 builds.
  * - `alloy`   — raw thermal frames thresholded at the melt temperature;
  *               only the builds where `hasThermal` is true.
+ * - `porosity` — melt-pool conditions associated with pore formation. The
+ *               indicators are measured from the same data; none of them is
+ *               yet validated against measured porosity, which is why the
+ *               payload carries its own validation status.
  */
-export type AnalysisMode = 'process' | 'alloy'
+export type AnalysisMode = 'process' | 'alloy' | 'porosity'
 
 export interface MaterialOption {
   id: string
@@ -339,6 +343,60 @@ export interface MeltPoolPhysics {
     /** G·R, the cooling rate, in °C/s. */
     coolingRateCPerS: number
   }
+}
+
+/* -------------------------------------------------------------- porosity -- */
+
+/**
+ * One measurable quantity associated with pore formation.
+ *
+ * Deliberately called an indicator rather than a prediction. Each is measured
+ * from the thermal and machine data, and each has a mechanism behind it from
+ * the literature, but none has been checked against this corpus's own pores:
+ * the X-ray porosity analysis is still being run. `validation` carries that
+ * status with the number so the two cannot be separated.
+ */
+export interface PorosityIndicator {
+  id: 'overlap' | 'undersized' | 'coldPool' | 'instability'
+  label: string
+  /** The measured value. */
+  value: number
+  unit: string
+  /** Which way is worse, for reading the scale. */
+  higherIsWorse: boolean
+  /** The pore mechanism this quantity is associated with. */
+  mechanism: string
+  /** What is known about whether it works here. */
+  validation: string
+  /** Null where the build lacks the data to compute it. */
+  available: boolean
+}
+
+export interface PorosityLayerRisk {
+  layer: number
+  zMm: number
+  /** Share of this layer's frames with a pool below the build's steady state. */
+  undersizedPct: number
+  /** Share below the steady-state temperature band. */
+  coldPct: number
+  /** Share the frame-level model flagged as deviating. */
+  deviatingPct: number
+  /** Worst location in this layer, in machine coordinates. */
+  worst: { xMm: number; yMm: number; zMm: number; sizePx: number } | null
+}
+
+export interface PorosityReport {
+  buildId: string
+  indicators: PorosityIndicator[]
+  layers: PorosityLayerRisk[]
+  /** Track spacing measured from the machine log, mm. Null without a log. */
+  trackSpacingMm: number | null
+  /** Median melt-pool width measured from the frames, mm. */
+  poolWidthMm: number | null
+  /** 1 - spacing / width. Below zero means neighbouring tracks never met. */
+  overlapRatio: number | null
+  /** Plain statement of what would turn these indicators into a predictor. */
+  validationNote: string
 }
 
 /* ----------------------------------------------------- anomaly detection -- */

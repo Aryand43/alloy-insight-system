@@ -245,7 +245,7 @@ export function SetupForm() {
       )}
 
       <div className="flex flex-col gap-3">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
             <Button type="submit" disabled={busy || !sampleId}>
               {submitting === 'process' ? 'Starting…' : 'Process Insight'}
@@ -268,6 +268,19 @@ export function SetupForm() {
             <p className="text-xs leading-relaxed text-steel-500">
               Melt-pool images segmented from thermal-camera frames
               {thermalCount ? ` (${thermalCount} ${thermalCount === 1 ? 'build' : 'builds'})` : ''}.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void run('porosity')}
+              disabled={busy || !sampleId}
+            >
+              {submitting === 'porosity' ? 'Starting…' : 'Porosity Insight'}
+            </Button>
+            <p className="text-xs leading-relaxed text-steel-500">
+              Melt-pool conditions associated with pore formation, measured rather than predicted.
             </p>
           </div>
         </div>

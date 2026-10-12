@@ -20,7 +20,7 @@ function newId(buildId: string, mode: AnalysisMode): string {
 }
 
 /** Tolerates ids minted before `mode` was part of the format. */
-const SESSION_ID_RE = /^ses_([0-9a-z]+r\d+)(?:_(process|alloy))?_/i
+const SESSION_ID_RE = /^ses_([0-9a-z]+r\d+)(?:_(process|alloy|porosity))?_/i
 
 export function buildIdFromSessionId(sessionId: string): string | null {
   const m = SESSION_ID_RE.exec(sessionId)
@@ -30,7 +30,14 @@ export function buildIdFromSessionId(sessionId: string): string | null {
 
 export function modeFromSessionId(sessionId: string): AnalysisMode {
   const m = SESSION_ID_RE.exec(sessionId)
-  return m?.[2] === 'alloy' ? 'alloy' : 'process'
+  if (m?.[2] === 'alloy') return 'alloy'
+  if (m?.[2] === 'porosity') return 'porosity'
+  return 'process'
+}
+
+/** The three analyses, with anything unrecognised falling back to process. */
+function asMode(raw: unknown): AnalysisMode {
+  return raw === 'alloy' ? 'alloy' : raw === 'porosity' ? 'porosity' : 'process'
 }
 
 /** Fills in the fields the server derives from the chosen coupon. */
@@ -40,7 +47,7 @@ export function normaliseConfig(
 ): SessionConfig {
   const material = getMaterialById(config.materialId ?? '') ?? MATERIALS[0]
   return {
-    mode: config.mode === 'alloy' ? 'alloy' : 'process',
+    mode: asMode(config.mode),
     materialId: material.id,
     materialLabel: material.label,
     // Every coupon in this corpus was built on a DMG MORI hybrid machine by
@@ -73,7 +80,7 @@ export function createSession(
   config: Partial<SessionConfig>,
 ): AnalysisSession {
   const session: AnalysisSession = {
-    id: newId(entry.id, config.mode === 'alloy' ? 'alloy' : 'process'),
+    id: newId(entry.id, asMode(config.mode)),
     config: normaliseConfig(entry, config),
     status: 'ready',
     createdAt: new Date().toISOString(),

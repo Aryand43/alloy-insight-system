@@ -6,6 +6,7 @@ import type {
   Frame,
   MeshPayload,
   ThresholdOverlay,
+  PorosityReport,
   QueryAnswer,
   ThresholdStats,
   ThreeColorPayload,
@@ -22,9 +23,17 @@ import { buildBrief } from '../services/brief.js'
 import { buildFrames, kivSizeUrl, kivTempUrl } from '../services/frames.js'
 import { getFrameIndex } from '../services/frameIndex.js'
 import { answerQuestion, QueryUnavailableError } from '../services/queryAssistant.js'
+import { buildPorosityReport } from '../services/porosity.js'
+import { celsiusToCount } from '../services/calibration.js'
 import { getLayerSeries, layerFromFrameId } from '../services/layers.js'
 import { createSession } from '../services/sessions.js'
-import { HttpError, requireBuild, resolveSession, thresholdsFrom } from './helpers.js'
+import {
+  HttpError,
+  meltThresholdFrom,
+  requireBuild,
+  resolveSession,
+  thresholdsFrom,
+} from './helpers.js'
 
 export const sessionsRouter = Router()
 
@@ -145,6 +154,25 @@ sessionsRouter.get('/sessions/:id/stats', async (req, res) => {
 sessionsRouter.get('/sessions/:id/anomalies', async (req, res) => {
   const { series } = await resolveSession(req.params.id, thresholdsFrom(req))
   const body: AnomalyReport = buildAnomalyReport(series)
+  res.json(body)
+})
+
+/**
+ * Melt-pool conditions associated with pore formation.
+ *
+ * Available for every build; the builds without thermal frames get the
+ * indicators they have the data for and say so for the rest.
+ */
+sessionsRouter.get('/sessions/:id/porosity', async (req, res) => {
+  const { entry, session } = await resolveSession(req.params.id, thresholdsFrom(req))
+  const userThresholdC = meltThresholdFrom(req) ?? session.config.thresholdC ?? session.config.meltingTempC
+
+  const body: PorosityReport = await buildPorosityReport(entry, {
+    count: celsiusToCount(userThresholdC),
+    celsius: userThresholdC,
+    source: 'user',
+  })
+  res.setHeader('Cache-Control', 'no-store')
   res.json(body)
 })
 

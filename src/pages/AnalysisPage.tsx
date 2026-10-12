@@ -24,6 +24,7 @@ import type {
   Frame,
   LayerFrameAnomalies,
   MeshPayload,
+  PorosityReport,
   ThresholdOverlay,
   ThresholdStats,
   ThreeColorPayload,
@@ -49,6 +50,13 @@ import {
 } from '../components/analysis/PhysicsPanels'
 import { getMeltPoolPhysics } from '../api/physics'
 import { SolidificationMap } from '../components/analysis/SolidificationMap'
+import {
+  PorosityIndicatorsPanel,
+  PorosityRiskPanel,
+  PorosityValidationBanner,
+  TrackOverlapPanel,
+} from '../components/analysis/PorosityPanels'
+import { getPorosityReport } from '../api/porosity'
 import { AnomalyBanner } from '../components/analysis/AnomalyBanner'
 import { BuildBriefStrip } from '../components/analysis/BuildBriefStrip'
 import { QueryPanel } from '../components/analysis/QueryPanel'
@@ -102,6 +110,8 @@ export function AnalysisPage() {
   const [layerNotice, setLayerNotice] = useState<string | null>(null)
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [fieldFull, setFieldFull] = useState<ThermalField | null>(null)
+  const [porosity, setPorosity] = useState<PorosityReport | null>(null)
+  const [porosityError, setPorosityError] = useState<string | null>(null)
   const [physics, setPhysics] = useState<MeltPoolPhysics | null>(null)
   /*
    * The probed contour point, held here so the boundary, gradient and
@@ -121,7 +131,12 @@ export function AnalysisPage() {
   const [fieldError, setFieldError] = useState<string | null>(null)
 
   const navigate = useNavigate()
-  const mode = session?.config.mode === 'alloy' ? 'alloy' : 'process'
+  const mode =
+    session?.config.mode === 'alloy'
+      ? 'alloy'
+      : session?.config.mode === 'porosity'
+        ? 'porosity'
+        : 'process'
   const WINDOW = 24
   /*
    * The contour everything is measured on: the alloy's melting temperature.
@@ -352,6 +367,30 @@ export function AnalysisPage() {
       cancelled = true
     }
   }, [sessionId, mode, thermalLayer])
+
+  // Melt-pool conditions associated with pore formation.
+  useEffect(() => {
+    if (!sessionId || mode !== 'porosity') return
+    let cancelled = false
+
+    getPorosityReport(sessionId, thresholdC)
+      .then((r) => {
+        if (cancelled) return
+        setPorosity(r)
+        setPorosityError(null)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setPorosity(null)
+        setPorosityError(
+          userMessage(err, 'Couldn’t measure melt-pool conditions for this build.'),
+        )
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, mode, thresholdC])
 
   /*
    * Thermal gradient and solidification rate for the current frame. Measured
@@ -589,7 +628,11 @@ export function AnalysisPage() {
           ) : (
             <>
               <span className="rounded-sm border border-accent-600/50 bg-accent-500/12 px-2 py-0.5 text-xs font-semibold tracking-tight text-accent-300">
-                {mode === 'alloy' ? 'Microstructure Insight' : 'Process Insight'}
+                {mode === 'alloy'
+                  ? 'Microstructure Insight'
+                  : mode === 'porosity'
+                    ? 'Porosity Insight'
+                    : 'Process Insight'}
               </span>
               <SummaryItem
                 label="Build"
@@ -623,6 +666,8 @@ export function AnalysisPage() {
           </p>
         )}
 
+        {mode === 'porosity' && <PorosityValidationBanner report={porosity} />}
+
         <AnomalyBanner
           report={report}
           loading={loadingReport}
@@ -634,9 +679,44 @@ export function AnalysisPage() {
 
         <BuildBriefStrip brief={brief} loading={loadingSession} />
 
+        {mode === 'porosity' ? (
+          <div className="grid gap-3 sm:gap-3.5 lg:grid-cols-2">
+            <Panel title="Melt-Pool Conditions by Layer">
+              <PorosityRiskPanel
+                report={porosity}
+                loading={!porosity && !porosityError}
+                error={porosityError}
+                activeLayer={thermalLayer}
+                onSelectLayer={setThermalLayer}
+              />
+            </Panel>
+            <Panel title="Track Overlap">
+              <TrackOverlapPanel
+                report={porosity}
+                loading={!porosity && !porosityError}
+                error={porosityError}
+              />
+            </Panel>
+            <div className="lg:col-span-2">
+              <Panel title="Candidate Indicators">
+                <PorosityIndicatorsPanel
+                  report={porosity}
+                  loading={!porosity && !porosityError}
+                  error={porosityError}
+                />
+              </Panel>
+            </div>
+          </div>
+        ) : null}
+
         {/* 2×2 viz grid */}
         {/* Row heights come from the panels' viz-primary / viz-secondary sizes. */}
-        <div className="grid gap-3 sm:gap-3.5 lg:grid-cols-2">
+        <div
+          className={[
+            'grid gap-3 sm:gap-3.5 lg:grid-cols-2',
+            mode === 'porosity' ? 'hidden' : '',
+          ].join(' ')}
+        >
           <Panel title="Layer Temperature Profile">
             {mode === 'alloy' ? (
               <ThermalProfilePanel
