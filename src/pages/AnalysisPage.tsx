@@ -251,7 +251,7 @@ export function AnalysisPage() {
               Math.abs(l.layer - thermalLayer) < Math.abs(best.layer - thermalLayer) ? l : best,
             )
             setThermalLayer(nearest.layer)
-            setThermalPos(Math.floor(nearest.frameCount / 2))
+            setThermalPos(nearest.openingFrame)
             const first = index.layers[0].layer
             const last = index.layers[index.layers.length - 1].layer
             setLayerNotice(
@@ -263,11 +263,11 @@ export function AnalysisPage() {
             // can be blank as the laser starts the track.
             const opening = index.layers[Math.floor(index.layers.length / 2)]
             setThermalLayer(opening.layer)
-            setThermalPos(Math.floor(opening.frameCount / 2))
+            setThermalPos(opening.openingFrame)
           } else if (thermalPos === 0) {
-            // Arrived on a layer chosen elsewhere — an anomaly jump or a chart
-            // click — so land mid-layer for the same reason.
-            setThermalPos(Math.floor(current.frameCount / 2))
+            // Arrived on a layer chosen elsewhere, an anomaly jump or a chart
+            // click, so land on a representative frame for the same reason.
+            setThermalPos(current.openingFrame)
           }
         }
       } catch (err) {

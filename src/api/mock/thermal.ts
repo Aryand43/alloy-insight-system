@@ -67,6 +67,7 @@ export async function mockGetThermalLayers(
       layer: i + 1,
       zMm: Number((i * 0.8 + 0.005).toFixed(3)),
       frameCount: FRAMES_PER_LAYER,
+      openingFrame: 190,
       meanTempC: 1640 + i * 14,
       meanSizeMm2: 5.6 + i * 0.35,
       level: i < 2 ? 'alert' : i < 4 ? 'transition' : 'stable',

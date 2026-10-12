@@ -105,6 +105,34 @@ function chooseThreshold(
   }
 }
 
+/**
+ * A frame to open a layer on: mid-layer, and travelling along a pass rather
+ * than stepping across to the next one.
+ *
+ * The raster spends most of its time running the length of the coupon and a
+ * few frames per pass turning around. Those turnaround frames are legitimate
+ * but unrepresentative, so the search starts at the middle of the layer and
+ * walks outward until the travel between neighbours is along the coupon.
+ */
+function steadyFrame(layer: IndexedLayer): number {
+  const frames = layer.frames
+  if (frames.length < 3) return Math.floor(frames.length / 2)
+
+  const middle = Math.floor(frames.length / 2)
+  for (let offset = 0; offset < frames.length / 2; offset++) {
+    for (const i of [middle - offset, middle + offset]) {
+      if (i < 1 || i >= frames.length - 1) continue
+      const previous = frames[i - 1]
+      const next = frames[i + 1]
+      const alongMm = Math.abs(next.xMm - previous.xMm)
+      const acrossMm = Math.abs(next.yMm - previous.yMm)
+      // Travelling along the pass: the across-wall step is negligible.
+      if (alongMm > 0.5 && acrossMm < alongMm * 0.2) return i
+    }
+  }
+  return middle
+}
+
 /** Frames spread across the build, for the steady-state size reference. */
 function referenceSample(layers: IndexedLayer[], transition: number, count = 12): IndexedFrame[] {
   const eligible = layers.filter((l) => l.layer > transition)
@@ -148,6 +176,7 @@ thermalRouter.get('/sessions/:id/thermal/layers', async (req, res) => {
         layer: l.layer,
         zMm: l.zMm,
         frameCount: l.frames.length,
+        openingFrame: steadyFrame(l),
         meanTempC: point?.meanTempC ?? 0,
         meanSizeMm2: point?.meanSizeMm2 ?? 0,
         level: point?.level ?? 'stable',

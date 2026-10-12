@@ -206,6 +206,13 @@ export interface ThermalLayerSummary {
   zMm: number
   /** Thermal frames captured during this layer, typically ~380. */
   frameCount: number
+  /**
+   * A frame mid-layer where the nozzle is travelling steadily along a pass.
+   * About 3% of frames catch the nozzle stepping across to the next pass,
+   * where the melt pool is reversing and nothing reads as it normally does;
+   * opening on one of those misrepresents the layer.
+   */
+  openingFrame: number
   meanTempC: number
   meanSizeMm2: number
   level: AlertLevel

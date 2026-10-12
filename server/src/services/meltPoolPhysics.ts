@@ -154,13 +154,26 @@ export function travelAt(frames: IndexedFrame[], index: number): TravelVector {
   }
 
   /*
-   * Machine x runs along the coupon and maps to image columns; machine y is
-   * across the wall. The camera is coaxial, so the image axes follow the
-   * machine's, and y is inverted because image rows increase downward.
+   * The machine's X axis appears VERTICAL in the camera image, not
+   * horizontal. Two independent lines of evidence:
+   *
+   * - The run header's FilterCenterX indexes the image row and FilterCenterY
+   *   the column. Taking them that way round reproduces the machine's own
+   *   logged meltpoolSize at a ratio of 0.995-1.001; transposed it gives 0.81.
+   * - The thermal tail flips with the travel direction, and it is the
+   *   vertical asymmetry that flips: "machine +X is image up" holds on 18 of
+   *   19 frames sampled across four layers, while "machine +X is image right"
+   *   holds on 9 of 19, which is chance. The horizontal asymmetry is present
+   *   but constant, so it is a static artefact rather than a tail.
+   *
+   * So machine +X points up the screen. The sign of the across-wall axis
+   * cannot be measured here, because the raster only ever travels along X and
+   * steps in Y between passes; a pure rotation is assumed, which puts machine
+   * +Y to the left. That choice only affects the few turnaround frames.
    */
   return {
-    dx: dxMm / distance,
-    dy: -dyMm / distance,
+    dx: -dyMm / distance,
+    dy: dxMm / distance,
     speedMmPerS: distance / dtS,
     speedSource: 'measured',
   }
