@@ -57,6 +57,7 @@ import {
   TrackOverlapPanel,
 } from '../components/analysis/PorosityPanels'
 import { getPorosityReport } from '../api/porosity'
+import { ExportBoundaryButton } from '../components/analysis/ExportBoundaryButton'
 import { AnomalyBanner } from '../components/analysis/AnomalyBanner'
 import { BuildBriefStrip } from '../components/analysis/BuildBriefStrip'
 import { QueryPanel } from '../components/analysis/QueryPanel'
@@ -581,6 +582,21 @@ export function AnalysisPage() {
   }
 
   // Only thermal builds can open Alloy Insight; every build has Process.
+  /*
+   * What the exported CSV is a measurement of. Taken from the physics payload
+   * rather than from the UI state, so a file can never be labelled with a
+   * frame other than the one it holds.
+   */
+  const exportContext =
+    physics && thermalIndex
+      ? {
+          buildId: thermalIndex.buildId,
+          layer: physics.layer,
+          position: physics.position,
+          thresholdC: physics.thresholdC,
+        }
+      : null
+
   const canOpenOtherMode = mode === 'alloy' || (brief?.monitoringFrames ?? 0) > 0
 
   // e.g. "10-pass · R5 · 56 layers × 0.9 mm", from the decoded build id.
@@ -774,7 +790,14 @@ export function AnalysisPage() {
               <Reconstruction3D data={recon} loading={loading3d} />
             )}
           </Panel>
-          <Panel title={mode === 'alloy' ? 'Melt Pool Boundary' : 'Layer Stability Map'}>
+          <Panel
+            title={mode === 'alloy' ? 'Melt Pool Boundary' : 'Layer Stability Map'}
+            actions={
+              mode === 'alloy' ? (
+                <ExportBoundaryButton physics={physics} context={exportContext} />
+              ) : undefined
+            }
+          >
             {mode === 'alloy' ? (
               <MeltPoolBoundaryPanel
                 physics={physics}
