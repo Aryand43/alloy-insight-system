@@ -182,13 +182,13 @@ export function ThermalGradientPanel(props: PhysicsPanelProps) {
                 {p.summary.gradientP90CPerMm.toLocaleString('en-US')}
               </span>
             </span>
-            <span title="Boundary points whose temperature rises outward: sensor noise at the pool edge, reported rather than hidden">
+            <span title="Boundary points whose temperature rose outward instead of falling: sensor noise at the pool edge, counted rather than hidden">
               rising outward{' '}
               <span className="readout text-steel-200">{p.summary.gradientNegativePct}%</span>
             </span>
           </div>
           <p className="text-xs leading-relaxed text-steel-400">
-            Least-squares fit of temperature over{' '}
+            |dT/dn| from a least-squares fit of temperature over{' '}
             <span className="readout text-steel-200">{p.summary.gradientSamples}</span> samples
             stepping outward along the normal, a{' '}
             <span className="readout text-steel-200">

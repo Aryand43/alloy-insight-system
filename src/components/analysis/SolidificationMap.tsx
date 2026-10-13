@@ -75,7 +75,9 @@ export function SolidificationMap({
     let excluded = 0
     physics.points.forEach((p, index) => {
       const r = p.solidificationMmPerS
-      if (r === null || r <= 0 || p.gradientCPerMm <= 0) {
+      // Points whose temperature rose outward are edge noise; the magnitude
+      // is positive now, so they are identified by the flag rather than sign.
+      if (r === null || r <= 0 || p.risesOutward || p.gradientCPerMm <= 0) {
         if (p.trailing) excluded += 1
         return
       }

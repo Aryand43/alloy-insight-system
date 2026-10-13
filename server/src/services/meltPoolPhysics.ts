@@ -316,8 +316,15 @@ export function boundaryPhysics(
         normalR /= length
         normalC /= length
 
-        const gradient = fitGradient(data, width, height, r, c, normalR, normalC)
-        if (gradient === null) continue
+        const signedGradient = fitGradient(data, width, height, r, c, normalR, normalC)
+        if (signedGradient === null) continue
+        /*
+         * Reported as a magnitude, which is how the gradient is defined. The
+         * sign is still measured and still counted in `gradientNegativePct`,
+         * because a point whose temperature rises outward is edge noise and
+         * that is worth knowing; it just should not drag a scale negative.
+         */
+        const gradient = Math.abs(signedGradient)
 
         // θ between the outward normal and travel. Image y is inverted, which
         // travelAt has already accounted for.
@@ -329,11 +336,12 @@ export function boundaryPhysics(
           xMm: round((c - centreC) * PITCH_MM, 3),
           yMm: round((r - centreR) * PITCH_MM, 3),
           gradientCPerMm: round(gradient, 1),
+          risesOutward: signedGradient < 0,
           thetaDeg: round((Math.acos(Math.max(-1, Math.min(1, cosTheta))) * 180) / Math.PI, 1),
           solidificationMmPerS: rate === null ? null : round(rate, 3),
           trailing,
         })
-        gradients.push(gradient)
+        gradients.push(signedGradient)
         if (rate !== null) rates.push(rate)
       }
     }
@@ -348,7 +356,9 @@ export function boundaryPhysics(
    */
   points.sort((a, b) => Math.atan2(a.yMm, a.xMm) - Math.atan2(b.yMm, b.xMm))
 
-  const sortedG = [...gradients].sort((a, b) => a - b)
+  // Percentiles are of the magnitude, so the scale a reader sees is positive;
+  // the signed values survive only to count how many rose outward.
+  const sortedG = gradients.map(Math.abs).sort((a, b) => a - b)
   const sortedR = [...rates].sort((a, b) => a - b)
   const medianG = quantile(sortedG, 0.5)
   const medianR = quantile(sortedR, 0.5)

@@ -22,6 +22,7 @@ export async function mockGetPhysics(
       xMm: Math.round(x * 1000) / 1000,
       yMm: Math.round(y * 1000) / 1000,
       gradientCPerMm: Math.round(900 + Math.cos(angle * 2) * 400),
+      risesOutward: false,
       thetaDeg: Math.round((Math.acos(cosTheta) * 180) / Math.PI),
       solidificationMmPerS: trailing
         ? Math.round(speed * Math.abs(cosTheta) * 1000) / 1000

@@ -31,6 +31,7 @@ const COLUMNS = [
   'theta_deg',
   'R_mm_per_s',
   'edge',
+  'rises_outward',
   'travel_speed_mm_per_s',
   'travel_heading_deg',
   'gradient_window_mm',
@@ -64,6 +65,8 @@ export function boundaryCsv(
       // there, and a zero would average into any downstream statistic.
       p.solidificationMmPerS,
       p.trailing ? 'trailing' : 'leading',
+      // G is a magnitude, so the direction of the fit is kept beside it.
+      p.risesOutward ? 'true' : 'false',
       physics.travel.speedMmPerS,
       physics.travel.headingDeg,
       physics.summary.gradientWindowMm,

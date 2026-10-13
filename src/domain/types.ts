@@ -299,11 +299,17 @@ export interface BoundaryPoint {
   xMm: number
   yMm: number
   /**
-   * Thermal gradient: the temperature drop from this boundary pixel to the
-   * pixel one step outward along the boundary normal, over the pixel pitch.
-   * Signed — a few points on a noisy edge genuinely rise outward.
+   * Thermal gradient magnitude, |dT/dn|, as the standard definition has it.
+   * Always positive; where the fit came back rising outward instead of
+   * falling, `risesOutward` says so rather than the number going negative.
    */
   gradientCPerMm: number
+  /**
+   * True where temperature rose along the outward normal. Physically it
+   * should fall, so these are the noisy points at the pool edge: kept as a
+   * flag so the magnitude stays usable while the diagnostic is not lost.
+   */
+  risesOutward: boolean
   /** Angle between the outward normal and the scan direction, degrees. */
   thetaDeg: number
   /**
