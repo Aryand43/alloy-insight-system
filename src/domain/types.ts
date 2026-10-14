@@ -445,6 +445,16 @@ export interface LayerFootprint {
   /** The largest enclosed gaps; `gapCount` is how many there were in total. */
   gaps: FootprintGap[]
   gapCount: number
+  /**
+   * False when consecutive pools stand apart, so the bare strips between them
+   * would read as enclosed gaps. The outlines still describe the traces; the
+   * gaps are withheld rather than reported as porosity candidates.
+   */
+  gapsAssessed: boolean
+  /** Median step between consecutive pool centres along a pass. */
+  stepMm: number | null
+  /** Median pool width, which the step is judged against. */
+  poolWidthMm: number | null
   coveredAreaMm2: number
   gapAreaMm2: number
   /** Grid resolution the coverage was rasterised at, mm. */

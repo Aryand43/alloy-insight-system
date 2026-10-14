@@ -33,6 +33,8 @@ const CELL_MM = 0.1
 const OUTLINE_POINTS = 56
 /** Gaps smaller than this are grid noise rather than a defect worth naming. */
 const MIN_GAP_MM2 = 0.04
+/** Beyond this, a step between pool centres is a move to the next pass. */
+const PASS_JUMP_MM = 10
 
 /**
  * Where a pixel sits on the machine, in mm.
@@ -57,6 +59,40 @@ function pixelToMachine(
 function round(n: number, dp = 3): number {
   const f = 10 ** dp
   return Math.round(n * f) / f
+}
+
+/*
+ * Enclosed gaps only mean anything when consecutive pools overlap. A capture
+ * that samples frames — the hosted demo ships one frame in three — leaves the
+ * pools standing apart, and the bare strip between each pair would otherwise
+ * be counted as lack of fusion. Comparing the step between pool centres with
+ * the pool's own width tells the two cases apart from the geometry itself,
+ * which also catches a thin capture on real data.
+ */
+function medianStepMm(outlines: FrameOutline[]): number | null {
+  const steps: number[] = []
+  for (let i = 1; i < outlines.length; i += 1) {
+    const dx = outlines[i].centreXMm - outlines[i - 1].centreXMm
+    const dy = outlines[i].centreYMm - outlines[i - 1].centreYMm
+    const step = Math.sqrt(dx * dx + dy * dy)
+    // A jump to the next pass is not a step along one.
+    if (step < PASS_JUMP_MM) steps.push(step)
+  }
+  if (!steps.length) return null
+  steps.sort((a, b) => a - b)
+  return steps[Math.floor(steps.length / 2)]
+}
+
+function medianPoolWidthMm(outlines: FrameOutline[]): number | null {
+  const widths = outlines
+    .map((o) => {
+      const xs = o.points.map((pt) => pt[0])
+      const ys = o.points.map((pt) => pt[1])
+      return Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
+    })
+    .sort((a, b) => a - b)
+  if (!widths.length) return null
+  return widths[Math.floor(widths.length / 2)]
 }
 
 export async function buildLayerFootprint(
@@ -160,7 +196,17 @@ export async function buildLayerFootprint(
           g.yMm <= centres.maxY,
       )
     : []
-  const gaps = allGaps.slice(0, 50)
+  /*
+   * With the pools standing apart, every bare strip between them reads as an
+   * enclosed gap. Those are the sampling interval, not the process, so the
+   * outlines are still returned — they show the traces either way — and the
+   * gap count is withheld rather than reported as porosity candidates.
+   */
+  const stepMm = medianStepMm(outlines)
+  const poolWidthMm = medianPoolWidthMm(outlines)
+  const gapsAssessed = stepMm === null || poolWidthMm === null ? false : stepMm <= poolWidthMm
+  const reported = gapsAssessed ? allGaps : []
+  const gaps = reported.slice(0, 50)
   const coveredAreaMm2 = covered.size * CELL_MM * CELL_MM
 
   return {
@@ -181,10 +227,13 @@ export async function buildLayerFootprint(
       : { minXMm: 0, maxXMm: 0, minYMm: 0, maxYMm: 0 },
     outlines,
     gaps,
-    gapCount: allGaps.length,
+    gapCount: reported.length,
+    gapsAssessed,
+    stepMm: stepMm === null ? null : round(stepMm, 2),
+    poolWidthMm: poolWidthMm === null ? null : round(poolWidthMm, 2),
     coveredAreaMm2: round(coveredAreaMm2, 2),
     gapAreaMm2: round(
-      allGaps.reduce((sum, g) => sum + g.areaMm2, 0),
+      reported.reduce((sum, g) => sum + g.areaMm2, 0),
       3,
     ),
     cellMm: CELL_MM,

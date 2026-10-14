@@ -125,7 +125,9 @@ export function LayerFootprintPanel({
           <span aria-hidden className="h-2 w-2 rounded-full bg-melt-boundary" />
           <span className="readout text-steel-200">{footprint.framesUsed}</span> pool outlines
         </span>
-        {footprint.gapCount > 0 ? (
+        {!footprint.gapsAssessed ? (
+          <span className="text-steel-300">Gaps not assessed at this frame spacing</span>
+        ) : footprint.gapCount > 0 ? (
           <span className="inline-flex items-center gap-1.5 text-signal-red-text">
             <span aria-hidden className="h-2 w-2 rounded-full bg-signal-red" />
             <span className="readout">{footprint.gapCount}</span> unmelted{' '}
@@ -156,7 +158,19 @@ export function LayerFootprintPanel({
             pool
           </>
         ) : null}
-        . This is the surface melt isotherm, which reaches beyond the bead itself, and it is one
+        .{' '}
+        {!footprint.gapsAssessed && footprint.stepMm && footprint.poolWidthMm ? (
+          <>
+            The frames of this layer step{' '}
+            <span className="readout text-steel-200">{footprint.stepMm.toFixed(2)} mm</span> between
+            pools that are{' '}
+            <span className="readout text-steel-200">{footprint.poolWidthMm.toFixed(2)} mm</span>{' '}
+            across, so consecutive pools do not touch and the bare strip between each pair is the
+            capture interval rather than the process. The traces are drawn as measured; enclosed
+            gaps are not counted here, and need a layer captured at the full frame rate.{' '}
+          </>
+        ) : null}
+        This is the surface melt isotherm, which reaches beyond the bead itself, and it is one
         plane: a gap here is strong evidence of lack of fusion, but no gap does not prove the layer
         fused to the one below.
       </p>
