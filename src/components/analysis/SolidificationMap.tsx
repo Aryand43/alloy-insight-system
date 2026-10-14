@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import type { MeltPoolPhysics } from '../../domain/types'
 import { metricColor, metricGradientCss } from '../../domain/metricColor'
+import { useThemeStore } from '../../store/themeStore'
 
 /**
  * The G against R plot, one point per place on the solidification front.
@@ -61,6 +62,7 @@ export function SolidificationMap({
   onSelectPoint,
 }: SolidificationMapProps) {
   const svgRef = useRef<SVGSVGElement>(null)
+  const theme = useThemeStore((t) => t.theme)
 
   const view = useMemo(() => {
     if (!physics) return null
@@ -189,7 +191,7 @@ export function SolidificationMap({
               y1={py(Math.min(Math.max(view.x0 + k, view.y0), view.y1))}
               x2={px(view.x1)}
               y2={py(Math.min(Math.max(view.x1 + k, view.y0), view.y1))}
-              stroke="#2d3d4e"
+              stroke="var(--color-plot-grid)"
               strokeWidth="0.25"
               strokeDasharray="1.5 1.5"
             />
@@ -201,37 +203,37 @@ export function SolidificationMap({
               y1={py(Math.min(Math.max(k - view.x0, view.y0), view.y1))}
               x2={px(view.x1)}
               y2={py(Math.min(Math.max(k - view.x1, view.y0), view.y1))}
-              stroke="#1f2b38"
+              stroke="var(--color-plot-rule)"
               strokeWidth="0.25"
             />
           ))}
 
           {/* Axes */}
-          <line x1={L} y1={T} x2={L} y2={H - B} stroke="#425568" strokeWidth="0.3" />
-          <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="#425568" strokeWidth="0.3" />
+          <line x1={L} y1={T} x2={L} y2={H - B} stroke="var(--color-plot-axis)" strokeWidth="0.3" />
+          <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="var(--color-plot-axis)" strokeWidth="0.3" />
           {ticks(view.x0, view.x1).map((t) => (
             <g key={`x${t}`}>
-              <line x1={px(t)} y1={H - B} x2={px(t)} y2={H - B + 1.2} stroke="#425568" strokeWidth="0.3" />
-              <text x={px(t)} y={H - B + 4.6} fill="#8a9aab" fontSize="3" textAnchor="middle">
+              <line x1={px(t)} y1={H - B} x2={px(t)} y2={H - B + 1.2} stroke="var(--color-plot-axis)" strokeWidth="0.3" />
+              <text x={px(t)} y={H - B + 4.6} fill="var(--color-plot-label)" fontSize="3" textAnchor="middle">
                 {label(t)}
               </text>
             </g>
           ))}
           {ticks(view.y0, view.y1).map((t) => (
             <g key={`y${t}`}>
-              <line x1={L - 1.2} y1={py(t)} x2={L} y2={py(t)} stroke="#425568" strokeWidth="0.3" />
-              <text x={L - 2} y={py(t) + 1} fill="#8a9aab" fontSize="3" textAnchor="end">
+              <line x1={L - 1.2} y1={py(t)} x2={L} y2={py(t)} stroke="var(--color-plot-axis)" strokeWidth="0.3" />
+              <text x={L - 2} y={py(t) + 1} fill="var(--color-plot-label)" fontSize="3" textAnchor="end">
                 {label(t)}
               </text>
             </g>
           ))}
-          <text x={(L + W - R) / 2} y={H - 2} fill="#8a9aab" fontSize="3.2" textAnchor="middle">
+          <text x={(L + W - R) / 2} y={H - 2} fill="var(--color-plot-label)" fontSize="3.2" textAnchor="middle">
             Growth rate R (mm/s)
           </text>
           <text
             x={3.2}
             y={(T + H - B) / 2}
-            fill="#8a9aab"
+            fill="var(--color-plot-label)"
             fontSize="3.2"
             textAnchor="middle"
             transform={`rotate(-90 3.2 ${(T + H - B) / 2})`}
@@ -246,7 +248,7 @@ export function SolidificationMap({
               cx={px(p.lx)}
               cy={py(p.ly)}
               r="0.7"
-              fill={metricColor(p.ratio, view.ratioLo, view.ratioHi)}
+              fill={metricColor(p.ratio, view.ratioLo, view.ratioHi, theme)}
               opacity="0.9"
             />
           ))}
@@ -256,12 +258,12 @@ export function SolidificationMap({
               cy={py(selected.ly)}
               r="1.8"
               fill="none"
-              stroke="#f2f5f9"
+              stroke="var(--color-plot-cursor)"
               strokeWidth="0.4"
             />
           )}
 
-          <text x={W - R} y={T + 3} fill="#64788d" fontSize="2.8" textAnchor="end">
+          <text x={W - R} y={T + 3} fill="var(--color-plot-label)" fontSize="2.8" textAnchor="end">
             higher G/R upper left
           </text>
         </svg>
@@ -272,7 +274,7 @@ export function SolidificationMap({
         <span
           aria-hidden
           className="h-1.5 flex-1 rounded-sm ring-1 ring-inset ring-[color:var(--border-hairline)]"
-          style={{ background: metricGradientCss() }}
+          style={{ background: metricGradientCss(theme) }}
         />
         <span className="readout text-steel-200">{Math.round(10 ** view.ratioHi)}</span>
         <span>G/R °C·s/mm²</span>

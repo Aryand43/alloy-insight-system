@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import type { BoundaryPoint } from '../../domain/types'
 import { metricColor, metricGradientCss } from '../../domain/metricColor'
+import { useThemeStore } from '../../store/themeStore'
 
 export type BoundaryMetric = 'none' | 'gradient' | 'solidification'
 
@@ -48,6 +49,7 @@ export function BoundaryMap({
   onSelectPoint,
 }: BoundaryMapProps) {
   const svgRef = useRef<SVGSVGElement>(null)
+  const theme = useThemeStore((t) => t.theme)
   /*
    * Plotted in the camera's own frame, the same orientation the melt-pool
    * image is shown in. Turning the contour to put travel down the screen made
@@ -185,7 +187,7 @@ export function BoundaryMap({
                   : '#3d7ab5'
                 : value === null
                   ? '#2b3a52'
-                  : metricColor(value, view.lo, view.hi)
+                  : metricColor(value, view.lo, view.hi, theme)
             return (
               <circle
                 key={`${p.xMm}:${p.yMm}:${i}`}
@@ -197,7 +199,7 @@ export function BoundaryMap({
               />
             )
           })}
-          <g stroke="#8a9aab" strokeWidth={Math.max(width, depth) / 220} fill="none">
+          <g stroke="var(--color-plot-label)" strokeWidth={Math.max(width, depth) / 220} fill="none">
             <line x1={ax} y1={ay} x2={bx} y2={by} />
             <path
               d={`M${bx} ${by} L${bx - Math.cos(radians - 0.4) * arrowLength * 0.3} ${
@@ -216,7 +218,7 @@ export function BoundaryMap({
                 y1={selected.y}
                 x2={selected.x}
                 y2={selected.y}
-                stroke="#f2f5f9"
+                stroke="var(--color-plot-cursor)"
                 strokeWidth={Math.max(width, depth) / 500}
                 opacity="0.35"
               />
@@ -225,7 +227,7 @@ export function BoundaryMap({
                 y1={view.minY}
                 x2={selected.x}
                 y2={selected.y}
-                stroke="#f2f5f9"
+                stroke="var(--color-plot-cursor)"
                 strokeWidth={Math.max(width, depth) / 500}
                 opacity="0.35"
               />
@@ -234,7 +236,7 @@ export function BoundaryMap({
                 cy={selected.y}
                 r={Math.max(width, depth) / 45}
                 fill="none"
-                stroke="#f2f5f9"
+                stroke="var(--color-plot-cursor)"
                 strokeWidth={Math.max(width, depth) / 300}
               />
             </g>
@@ -242,7 +244,7 @@ export function BoundaryMap({
           <text
             x={ax}
             y={ay - depth * 0.05}
-            fill="#8a9aab"
+            fill="var(--color-plot-label)"
             fontSize={Math.max(width, depth) / 28}
             textAnchor="middle"
           >
@@ -260,7 +262,7 @@ export function BoundaryMap({
           <span
             aria-hidden
             className="h-1.5 flex-1 rounded-sm ring-1 ring-inset ring-[color:var(--border-hairline)]"
-            style={{ background: metricGradientCss() }}
+            style={{ background: metricGradientCss(theme) }}
           />
           <span className="font-mono text-steel-200">{Math.round(view.hi)}</span>
           <span>{unit}</span>

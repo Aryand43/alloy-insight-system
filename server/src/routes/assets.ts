@@ -1,7 +1,12 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { Router } from 'express'
-import { layerProfileSvg, layerThumbnailSvg, type ChartKind } from '../services/charts.js'
+import {
+  layerProfileSvg,
+  layerThumbnailSvg,
+  type ChartKind,
+  type ChartTheme,
+} from '../services/charts.js'
 import { getLayerSeries } from '../services/layers.js'
 import { HttpError, requireBuild, thresholdsFrom } from './helpers.js'
 
@@ -11,6 +16,11 @@ const IMMUTABLE = 'public, max-age=3600'
 
 function parseKind(raw: unknown): ChartKind {
   return raw === 'size' ? 'size' : 'temp'
+}
+
+/** The chart is an image, so it is drawn in the theme the client is showing. */
+function parseTheme(raw: unknown): ChartTheme {
+  return raw === 'light' ? 'light' : 'dark'
 }
 
 function parseLayer(raw: string, max: number): number {
@@ -55,7 +65,17 @@ assetsRouter.get('/builds/:buildId/layers/:layer/chart.svg', async (req, res) =>
   const layer = parseLayer(req.params.layer, series.points.length)
 
   res.setHeader('Cache-Control', IMMUTABLE)
-  res.type('image/svg+xml').send(layerProfileSvg(series, layer, parseKind(req.query.kind)))
+  res
+    .type('image/svg+xml')
+    .send(
+      layerProfileSvg(
+        series,
+        layer,
+        parseKind(req.query.kind),
+        undefined,
+        parseTheme(req.query.theme),
+      ),
+    )
 })
 
 assetsRouter.get('/builds/:buildId/layers/:layer/thumb.svg', async (req, res) => {
@@ -64,5 +84,9 @@ assetsRouter.get('/builds/:buildId/layers/:layer/thumb.svg', async (req, res) =>
   const layer = parseLayer(req.params.layer, series.points.length)
 
   res.setHeader('Cache-Control', IMMUTABLE)
-  res.type('image/svg+xml').send(layerThumbnailSvg(series, layer, parseKind(req.query.kind)))
+  res
+    .type('image/svg+xml')
+    .send(
+      layerThumbnailSvg(series, layer, parseKind(req.query.kind), parseTheme(req.query.theme)),
+    )
 })

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { ThemeToggle } from './ThemeToggle'
 
 function BrandMark({ size = 28 }: { size?: number }) {
   return (
@@ -63,7 +64,10 @@ export function AppShell({ children, compact = false, trailing }: AppShellProps)
               PRISM
             </span>
           </Link>
-          {trailing}
+          <div className="flex items-center gap-2">
+            {trailing}
+            <ThemeToggle />
+          </div>
         </header>
         {demoNote && (
           <div className="border-b border-[color:var(--border-hairline)] bg-steel-900/60 px-4 py-1.5 text-center text-xs leading-relaxed text-steel-400">

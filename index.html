@@ -13,6 +13,24 @@
     />
   </head>
   <body>
+    <script>
+      /* Applied before the first paint: React mounting later would repaint the
+         whole page and flash the wrong theme on every load. */
+      (function () {
+        try {
+          var stored = localStorage.getItem('prism-theme')
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+          document.documentElement.dataset.theme = theme
+        } catch (e) {
+          document.documentElement.dataset.theme = 'dark'
+        }
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

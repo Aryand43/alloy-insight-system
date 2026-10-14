@@ -1,5 +1,6 @@
 import type { AnomalySeverity, Frame } from '../../domain/types'
 import { ProfileChart } from './ProfileChart'
+import { useThemeStore } from '../../store/themeStore'
 
 interface RawImagesPanelProps {
   frames: Frame[]
@@ -32,6 +33,7 @@ export function RawImagesPanel({
   flagged,
   transitionEndLayer = 0,
 }: RawImagesPanelProps) {
+  const theme = useThemeStore((s) => s.theme)
   const selected = frames.find((f) => f.id === selectedId) ?? frames[0]
 
   if (loading || !frames.length) {
@@ -99,7 +101,7 @@ export function RawImagesPanel({
                 the full-size charts are ~875x656 each.
               */}
               <img
-                src={frame.thumbnailUrl ?? frame.imageUrl}
+                src={`${frame.thumbnailUrl ?? frame.imageUrl}${theme === 'light' ? '&theme=light' : ''}`}
                 alt=""
                 className="h-12 w-12 object-cover"
                 loading="lazy"

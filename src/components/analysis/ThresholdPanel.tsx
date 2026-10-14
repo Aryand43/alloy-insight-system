@@ -76,11 +76,11 @@ export function ThresholdPanel({ overlay, loading, error }: ThresholdPanelProps)
             role="img"
             aria-label="Estimated melt-pool shape for this layer, against the build median"
           >
-            <rect width={width} height={height} fill="#0d1117" />
+            <rect width={width} height={height} fill="var(--color-steel-950)" />
             <defs>
               <radialGradient id="field" cx="50%" cy="48%" r="50%">
-                <stop offset="0%" stopColor="#243040" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#0d1117" stopOpacity="1" />
+                <stop offset="0%" stopColor="var(--color-steel-800)" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="var(--color-steel-950)" stopOpacity="1" />
               </radialGradient>
             </defs>
             <rect width={width} height={height} fill="url(#field)" />
@@ -96,7 +96,7 @@ export function ThresholdPanel({ overlay, loading, error }: ThresholdPanelProps)
                   rx={c.rx}
                   ry={c.ry}
                   fill="rgba(61, 122, 181, 0.2)"
-                  stroke="#3d7ab5"
+                  stroke="var(--color-signal-blue)"
                   strokeWidth={2}
                   strokeDasharray="7 5"
                   opacity={c.opacity + 0.3}
@@ -112,7 +112,7 @@ export function ThresholdPanel({ overlay, loading, error }: ThresholdPanelProps)
                   rx={c.rx}
                   ry={c.ry}
                   fill="rgba(214, 69, 69, 0.55)"
-                  stroke="#ff5c5c"
+                  stroke="var(--color-signal-red)"
                   strokeWidth={2.5}
                   opacity={Math.min(1, c.opacity + 0.5)}
                 />
@@ -154,7 +154,7 @@ export function ThresholdPanel({ overlay, loading, error }: ThresholdPanelProps)
           </p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel-300">
             <span className="inline-flex items-center gap-1.5">
-              <span aria-hidden className="inline-block w-4 border-t-2 border-[#ff5c5c]" />
+              <span aria-hidden className="inline-block w-4 border-t-2 border-[color:var(--color-signal-red)]" />
               This layer
             </span>
             <span className="inline-flex items-center gap-1.5">

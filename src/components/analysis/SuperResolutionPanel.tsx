@@ -219,7 +219,7 @@ export function SuperResolutionPanel({
         ].map((pane) => (
           <div
             key={pane.title}
-            className="surface-inset relative overflow-hidden rounded-sm"
+            className="surface-imagery relative overflow-hidden rounded-sm"
           >
             <canvas
               ref={pane.ref}

@@ -102,7 +102,7 @@ export function MeltPoolImagesPanel({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="surface-inset viz-primary relative overflow-hidden rounded-sm">
+      <div className="surface-imagery viz-primary relative overflow-hidden rounded-sm">
         {error ? (
           <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-signal-red-text">
             {error}

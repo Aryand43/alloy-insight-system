@@ -12,6 +12,8 @@
  * container is locked to that aspect ratio so `object-contain` leaves no
  * letterboxing, and a layer's position maps straight to a percentage.
  */
+import { useThemeStore } from '../../store/themeStore'
+
 const CHART_W = 640
 const PLOT_LEFT = 84
 const PLOT_RIGHT = CHART_W - 24
@@ -34,6 +36,11 @@ function xFraction(index: number, count: number): number {
   return x / CHART_W
 }
 
+/** Charts are server-rendered images, so the palette goes in the request. */
+function themed(src: string, theme: string): string {
+  return theme === 'light' ? `${src}${src.includes('?') ? '&' : '?'}theme=light` : src
+}
+
 export function ProfileChart({
   src,
   alt,
@@ -43,6 +50,7 @@ export function ProfileChart({
   describeLayer,
   flagged,
 }: ProfileChartProps) {
+  const theme = useThemeStore((s) => s.theme)
   // Half the gap between adjacent layers, so the buttons tile the plot area.
   const halfStep =
     layerCount > 1 ? (xFraction(1, layerCount) - xFraction(0, layerCount)) / 2 : 0.5
@@ -50,7 +58,7 @@ export function ProfileChart({
   return (
     <div className="surface-inset viz-primary relative overflow-hidden rounded-sm">
       <img
-        src={src}
+        src={themed(src, theme)}
         alt={alt}
         className="absolute inset-0 h-full w-full object-contain"
         decoding="async"

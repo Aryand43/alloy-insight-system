@@ -2,22 +2,54 @@ import type { AnomalyReport } from '../../../src/domain/types.js'
 import { buildAnomalyReport } from './anomaly.js'
 import type { LayerPoint, LayerSeries } from './layers.js'
 
-const BG = '#0d1117'
-const GRID = '#243040'
-const AXIS = '#4a5d72'
-const TEXT = '#8a9aab'
-const TEXT_BRIGHT = '#e2e8ef'
-const LINE = '#3d7ab5'
+/**
+ * Chart palettes, one per interface theme.
+ *
+ * These charts are rendered to SVG on the server, so their colours are fixed
+ * when the image is requested rather than inherited from the page. The client
+ * asks for the palette matching the theme it is showing; the status colours
+ * keep their meanings in both, with the light variants darkened enough to
+ * read on a pale background.
+ */
+export type ChartTheme = 'dark' | 'light'
 
-const LEVEL_COLOR = {
-  stable: '#3d9a6a',
-  transition: '#e8b84a',
-  alert: '#d64545',
-} as const
+interface Palette {
+  bg: string
+  grid: string
+  axis: string
+  text: string
+  textBright: string
+  line: string
+  transitionFill: string
+  level: { stable: string; transition: string; alert: string }
+}
 
-/** Ramp-up shading — deliberately cool and quiet, so it reads as context. */
-const TRANSITION_FILL = '#2b3a52'
-const ANOMALY_COLOR = { watch: '#e8b84a', alert: '#d64545' } as const
+const PALETTES: Record<ChartTheme, Palette> = {
+  dark: {
+    bg: '#0d1117',
+    grid: '#243040',
+    axis: '#4a5d72',
+    text: '#8a9aab',
+    textBright: '#e2e8ef',
+    line: '#3d7ab5',
+    transitionFill: '#2b3a52',
+    level: { stable: '#3d9a6a', transition: '#e8b84a', alert: '#d64545' },
+  },
+  light: {
+    bg: '#f7f9fc',
+    grid: '#d8dfe8',
+    axis: '#9dabbb',
+    text: '#586573',
+    textBright: '#1d2731',
+    line: '#2a5f91',
+    transitionFill: '#ccd7e4',
+    level: { stable: '#1f7a4d', transition: '#8a6200', alert: '#c62828' },
+  },
+}
+
+export function chartPalette(theme: ChartTheme = 'dark'): Palette {
+  return PALETTES[theme] ?? PALETTES.dark
+}
 
 function esc(s: string): string {
   return s.replace(/[<>&"']/g, (c) =>
@@ -59,7 +91,18 @@ export function layerProfileSvg(
   layer: number,
   kind: ChartKind = 'temp',
   report: AnomalyReport = buildAnomalyReport(series),
+  theme: ChartTheme = 'dark',
 ): string {
+  const palette = chartPalette(theme)
+  const BG = palette.bg
+  const GRID = palette.grid
+  const AXIS = palette.axis
+  const TEXT = palette.text
+  const TEXT_BRIGHT = palette.textBright
+  const LINE = palette.line
+  const TRANSITION_FILL = palette.transitionFill
+  const LEVEL_COLOR = palette.level
+  const ANOMALY_COLOR = { watch: palette.level.transition, alert: palette.level.alert }
   const W = 640
   const H = 420
   // Sized for legibility when the 640px chart is drawn at panel size.
@@ -219,7 +262,12 @@ export function layerThumbnailSvg(
   series: LayerSeries,
   layer: number,
   kind: ChartKind = 'temp',
+  theme: ChartTheme = 'dark',
 ): string {
+  const palette = chartPalette(theme)
+  const BG = palette.bg
+  const TEXT = palette.text
+  const LEVEL_COLOR = palette.level
   const S = 64
   const pad = 6
   const values = seriesValues(series, kind)

@@ -44,6 +44,20 @@
   /* Melt-pool contour drawn into thermal frames (server BOUNDARY_RGB). */
   --color-melt-boundary: #22e7ee;
 
+  /*
+   * Text that sits on an accent fill. Stays light in both themes, because the
+   * accent is mid-toned in both and a flipped text ramp would put dark text
+   * on it in light mode.
+   */
+  --color-accent-contrast: #f2f5f9;
+
+  /* Plot furniture, so the client-drawn SVGs can follow the theme. */
+  --color-plot-grid: #2d3d4e;
+  --color-plot-rule: #1f2b38;
+  --color-plot-axis: #425568;
+  --color-plot-label: #8a9aab;
+  --color-plot-cursor: #f2f5f9;
+
   /* Crisp corners throughout — instrumentation, not consumer software. */
   --radius-sm: 3px;
   --radius-md: 4px;
@@ -64,6 +78,63 @@
 
   /* Control geometry. */
   --control-height: 2.25rem;
+}
+
+/*
+ * Light theme.
+ *
+ * The steel ramp is defined dark-to-light and the whole interface is built on
+ * it: `bg-steel-950` is the page, `text-steel-100` is body copy. So light mode
+ * flips the ramp end for end rather than re-styling components, and every
+ * utility already in the markup lands on the right side of the new
+ * background. The accent and status scales are flipped separately, because
+ * the shades used as text there are the light ones.
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --color-steel-950: #f5f7fa;
+  --color-steel-900: #eceff4;
+  --color-steel-850: #e4e9ef;
+  --color-steel-800: #d8dfe8;
+  --color-steel-700: #c3cdda;
+  --color-steel-600: #9dabbb;
+  --color-steel-500: #6e7d8f;
+  --color-steel-400: #586573;
+  --color-steel-300: #45515d;
+  --color-steel-200: #333d48;
+  --color-steel-100: #1d2731;
+  --color-steel-50: #0d151d;
+
+  /* Accent: the light shades were the readable ones on dark, so they become
+     the dark shades here. 600 stays the fill and keeps light text on it. */
+  --color-accent-700: #0a5461;
+  --color-accent-600: #11788a;
+  --color-accent-500: #1793a6;
+  --color-accent-400: #0f7d8d;
+  --color-accent-300: #0a5461;
+
+  /* Status keeps its meaning and gains contrast against a light surface. */
+  --color-signal-red: #c62828;
+  --color-signal-blue: #2a5f91;
+  --color-signal-green: #1f7a4d;
+  --color-signal-yellow: #8a6200;
+  --color-signal-amber: #9a6b06;
+  --color-signal-red-text: #a81d1d;
+
+  --color-plot-grid: #c3cdda;
+  --color-plot-rule: #dde3ea;
+  --color-plot-axis: #9dabbb;
+  --color-plot-label: #586573;
+  --color-plot-cursor: #0d151d;
+
+  --elevation-hairline: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --elevation-panel: 0 1px 2px rgba(23, 35, 48, 0.08), 0 10px 26px -18px rgba(23, 35, 48, 0.35);
+  --elevation-control: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+  --border-hairline: rgba(45, 61, 78, 0.16);
+  --border-control: rgba(45, 61, 78, 0.26);
+  --border-control-hover: rgba(45, 61, 78, 0.45);
 }
 
 html,
@@ -103,6 +174,23 @@ table {
   position: relative;
 }
 
+:root[data-theme='light'] .app-atmosphere {
+  background-image:
+    radial-gradient(ellipse 120% 80% at 10% 0%, rgba(23, 147, 166, 0.08), transparent 52%),
+    radial-gradient(ellipse 90% 60% at 92% 10%, rgba(61, 122, 181, 0.06), transparent 48%),
+    linear-gradient(180deg, #ffffff 0%, #eef2f7 60%);
+}
+
+:root[data-theme='light'] .app-atmosphere::before {
+  background-image:
+    linear-gradient(rgba(45, 61, 78, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 61, 78, 0.05) 1px, transparent 1px);
+}
+
+:root[data-theme='light'] .app-atmosphere::after {
+  opacity: 0.015;
+}
+
 .app-atmosphere::before {
   content: '';
   pointer-events: none;
@@ -133,23 +221,62 @@ table {
   box-shadow: var(--elevation-panel), var(--elevation-hairline);
 }
 
+:root[data-theme='light'] .panel-surface {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 42%);
+}
+
 /** Header strip of a panel — one level darker than the panel body. */
 .panel-head {
   background: linear-gradient(180deg, rgba(10, 14, 20, 0.5), rgba(10, 14, 20, 0.18));
   border-bottom: 1px solid var(--border-hairline);
 }
 
-/** A well for charts, images and 3D canvases: recessed, not raised. */
+:root[data-theme='light'] .panel-head {
+  background: linear-gradient(180deg, #f2f5f9, #f8fafc);
+}
+
+/** A well for charts and vector plots: recessed, not raised. */
 .surface-inset {
   background: rgba(7, 10, 15, 0.62);
   border: 1px solid rgba(138, 154, 171, 0.08);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 
+:root[data-theme='light'] .surface-inset {
+  background: #f7f9fc;
+  border: 1px solid rgba(45, 61, 78, 0.1);
+  box-shadow: inset 0 1px 3px rgba(23, 35, 48, 0.07);
+}
+
+/**
+ * A well for measured imagery: thermal frames, the super-resolution canvases
+ * and the 3D fields.
+ *
+ * Stays dark in both themes on purpose. The thermal colour map runs pale
+ * yellow to deep red and is read against a dark surround; dropping it on a
+ * white panel changes how the temperatures read, and the 3D scenes clear to a
+ * dark background of their own. Chrome follows the theme, measured imagery
+ * keeps the background it was calibrated against.
+ */
+.surface-imagery {
+  background: rgba(7, 10, 15, 0.62);
+  border: 1px solid rgba(138, 154, 171, 0.08);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme='light'] .surface-imagery {
+  background: #0a0e14;
+  border: 1px solid rgba(45, 61, 78, 0.18);
+}
+
 /** Secondary information bands — brief, stats, assistant. */
 .surface-sunken {
   background: rgba(17, 24, 33, 0.55);
   border: 1px solid var(--border-hairline);
+}
+
+:root[data-theme='light'] .surface-sunken {
+  background: #f3f6fa;
 }
 
 /* ----------------------------------------------------------- controls -- */
@@ -186,12 +313,22 @@ table {
   border-radius: var(--radius-sm);
 }
 
+:root[data-theme='light'] .ctl {
+  /* background-color, not the shorthand: the shorthand also resets
+     background-repeat, which tiles the select's chevron across the control. */
+  background-color: #ffffff;
+}
+
 /** Native select loses its chevron under appearance-none; this restores one. */
 .select-chevron {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%238a9aab' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   padding-right: 2.25rem;
+}
+
+:root[data-theme='light'] .select-chevron {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%23586573' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 /* ------------------------------------------------------- typography -- */
