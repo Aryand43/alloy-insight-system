@@ -412,6 +412,45 @@ export interface PorosityReport {
   validationNote: string
 }
 
+/** One frame's melt-pool outline, placed on the machine's own axes. */
+export interface FrameOutline {
+  position: number
+  centreXMm: number
+  centreYMm: number
+  /** Closed contour in machine coordinates, [x, y] pairs in mm. */
+  points: [number, number][]
+}
+
+/** An enclosed patch of the layer that no melt pool covered. */
+export interface FootprintGap {
+  xMm: number
+  yMm: number
+  areaMm2: number
+}
+
+/**
+ * The melted footprint of one layer: every frame's pool outline laid out in
+ * machine coordinates, and the enclosed patches none of them covered.
+ */
+export interface LayerFootprint {
+  layer: number
+  zMm: number
+  frames: number
+  framesUsed: number
+  framesUnreadable: number
+  thresholdC: number
+  thresholdSource: 'machine' | 'user'
+  bounds: { minXMm: number; maxXMm: number; minYMm: number; maxYMm: number }
+  outlines: FrameOutline[]
+  /** The largest enclosed gaps; `gapCount` is how many there were in total. */
+  gaps: FootprintGap[]
+  gapCount: number
+  coveredAreaMm2: number
+  gapAreaMm2: number
+  /** Grid resolution the coverage was rasterised at, mm. */
+  cellMm: number
+}
+
 /* ----------------------------------------------------- anomaly detection -- */
 
 /**

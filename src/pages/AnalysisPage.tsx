@@ -23,6 +23,7 @@ import type {
   BuildBrief,
   Frame,
   LayerFrameAnomalies,
+  LayerFootprint,
   MeshPayload,
   PorosityReport,
   ThresholdOverlay,
@@ -54,9 +55,10 @@ import {
   PorosityIndicatorsPanel,
   PorosityRiskPanel,
   PorosityValidationBanner,
-  TrackOverlapPanel,
 } from '../components/analysis/PorosityPanels'
 import { getPorosityReport } from '../api/porosity'
+import { getLayerFootprint } from '../api/footprint'
+import { LayerFootprintPanel } from '../components/analysis/LayerFootprintPanel'
 import { ExportBoundaryButton } from '../components/analysis/ExportBoundaryButton'
 import { AnomalyBanner } from '../components/analysis/AnomalyBanner'
 import { BuildBriefStrip } from '../components/analysis/BuildBriefStrip'
@@ -111,6 +113,8 @@ export function AnalysisPage() {
   const [layerNotice, setLayerNotice] = useState<string | null>(null)
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [fieldFull, setFieldFull] = useState<ThermalField | null>(null)
+  const [footprint, setFootprint] = useState<LayerFootprint | null>(null)
+  const [footprintError, setFootprintError] = useState<string | null>(null)
   const [porosity, setPorosity] = useState<PorosityReport | null>(null)
   const [porosityError, setPorosityError] = useState<string | null>(null)
   const [physics, setPhysics] = useState<MeltPoolPhysics | null>(null)
@@ -228,9 +232,9 @@ export function AnalysisPage() {
     }
   }, [sessionId, selectedFrameId])
 
-  // Layer index for Alloy Insight.
+  // Layer index for the two modes that read frames.
   useEffect(() => {
-    if (!sessionId || mode !== 'alloy') return
+    if (!sessionId || (mode !== 'alloy' && mode !== 'porosity')) return
     let cancelled = false
 
     async function load() {
@@ -287,6 +291,35 @@ export function AnalysisPage() {
     // thermalLayer is intentionally excluded: this seeds the layer once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, mode, setThermalLayer, setThermalPos])
+
+  /*
+   * The layer's melted footprint. Every frame of the layer is read to build
+   * it, so it is fetched only for the layer on screen and only in the mode
+   * that shows it.
+   */
+  useEffect(() => {
+    if (!sessionId || mode !== 'porosity' || thermalLayer === null) return
+    let cancelled = false
+
+    setFootprint(null)
+    getLayerFootprint(sessionId, thermalLayer, thresholdC)
+      .then((f) => {
+        if (cancelled) return
+        setFootprint(f)
+        setFootprintError(null)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setFootprint(null)
+        setFootprintError(
+          userMessage(err, 'Couldn’t build the melted footprint for this layer.'),
+        )
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, mode, thermalLayer, thresholdC])
 
   // Frame window around the cursor — never all ~380 at once.
   const windowStart = Math.floor(thermalPos / WINDOW) * WINDOW
@@ -528,11 +561,14 @@ export function AnalysisPage() {
   /**
    * Selects a layer in whichever mode is open.
    *
-   * In Alloy Insight not every layer has captured frames, so a click on the
-   * chart snaps to the nearest layer that does rather than failing.
+   * Process Insight reads a layer's means straight from the build record, so
+   * the selected id is all that moves. The two frame-backed modes need the
+   * thermal layer itself to move, because their panels are keyed on it, and
+   * not every layer has captured frames: a click snaps to the nearest layer
+   * that does rather than failing.
    */
   function selectLayer(layer: number) {
-    if (mode !== 'alloy') {
+    if (mode === 'process') {
       setSelectedFrameId(`L${layer}`)
       return
     }
@@ -697,6 +733,29 @@ export function AnalysisPage() {
 
         {mode === 'porosity' ? (
           <div className="grid gap-3 sm:gap-3.5 lg:grid-cols-2">
+            <Panel title="Layer Temperature Profile">
+              <RawImagesPanel
+                frames={frames}
+                selectedId={thermalLayer === null ? selectedFrameId : `L${thermalLayer}`}
+                onSelect={(id) => {
+                  const layer = Number(id.replace(/\D/g, ''))
+                  setSelectedFrameId(id)
+                  if (Number.isInteger(layer)) selectLayer(layer)
+                }}
+                loading={loadingFrames}
+                flagged={flagged}
+                transitionEndLayer={report?.transition.endLayer}
+              />
+            </Panel>
+            <Panel title="Melted Footprint">
+              <LayerFootprintPanel
+                footprint={footprint}
+                loading={!footprint && !footprintError}
+                error={footprintError}
+                trackSpacingMm={porosity?.trackSpacingMm}
+                poolWidthMm={porosity?.poolWidthMm}
+              />
+            </Panel>
             <Panel title="Melt-Pool Conditions by Layer">
               <PorosityRiskPanel
                 report={porosity}
@@ -706,22 +765,13 @@ export function AnalysisPage() {
                 onSelectLayer={setThermalLayer}
               />
             </Panel>
-            <Panel title="Track Overlap">
-              <TrackOverlapPanel
+            <Panel title="Candidate Indicators">
+              <PorosityIndicatorsPanel
                 report={porosity}
                 loading={!porosity && !porosityError}
                 error={porosityError}
               />
             </Panel>
-            <div className="lg:col-span-2">
-              <Panel title="Candidate Indicators">
-                <PorosityIndicatorsPanel
-                  report={porosity}
-                  loading={!porosity && !porosityError}
-                  error={porosityError}
-                />
-              </Panel>
-            </div>
           </div>
         ) : null}
 

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import type {
+  LayerFootprint,
   LayerFrameAnomalies,
   MeltPoolPhysics,
   ThermalFrameStats,
@@ -12,6 +13,7 @@ import { layerFrameAnomalies } from '../services/anomaly.js'
 import { frameReference, layerFeatures } from '../services/anomalyFeatures.js'
 import { getFrameIndex, type IndexedFrame, type IndexedLayer } from '../services/frameIndex.js'
 import { boundaryPhysics, travelAt } from '../services/meltPoolPhysics.js'
+import { buildLayerFootprint } from '../services/layerFootprint.js'
 import {
   loadFrame,
   poolReference,
@@ -306,6 +308,49 @@ thermalRouter.get(
       }
       throw err
     }
+  },
+)
+
+/**
+ * Every melt-pool outline in a layer, laid out on the machine's axes.
+ *
+ * Reads every frame of the layer, so it is cached per build, layer and
+ * threshold: the work is a second or so and scrubbing layers would otherwise
+ * repeat it.
+ */
+const footprintCache = new Map<string, Promise<LayerFootprint>>()
+const FOOTPRINT_CACHE_LIMIT = 12
+
+thermalRouter.get(
+  '/sessions/:id/thermal/layers/:layer/footprint',
+  async (req, res) => {
+    const { entry } = await resolveSession(req.params.id, thresholdsFrom(req))
+    requireThermal(entry)
+    const index = await getFrameIndex(entry)
+    const layer = pickLayer(index, req.params.layer)
+    const threshold = chooseThreshold(
+      meltThresholdFrom(req),
+      index.meltThresholdC,
+      layer.frames[0],
+    )
+
+    const key = `${entry.id}|${layer.layer}|${threshold.count}`
+    let hit = footprintCache.get(key)
+    if (!hit) {
+      hit = buildLayerFootprint(layer, threshold).catch((err) => {
+        footprintCache.delete(key)
+        throw err
+      })
+      footprintCache.set(key, hit)
+      if (footprintCache.size > FOOTPRINT_CACHE_LIMIT) {
+        const oldest = footprintCache.keys().next().value
+        if (oldest !== undefined) footprintCache.delete(oldest)
+      }
+    }
+
+    const body: LayerFootprint = await hit
+    res.setHeader('Cache-Control', 'no-store')
+    res.json(body)
   },
 )
 
