@@ -1,23 +1,30 @@
 import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { ThemeToggle } from './ThemeToggle'
+import { useThemeStore } from '../../store/themeStore'
+import wordmarkLight from '../../assets/prism-wordmark.png'
+import wordmarkDark from '../../assets/prism-wordmark-dark.png'
 
-function BrandMark({ size = 28 }: { size?: number }) {
+/**
+ * The wordmark, cut from the supplied logo artwork with its white ground
+ * keyed out. The artwork's navy ink disappears against the dark interface, so
+ * the dark-theme copy is the same cut with its lightness inverted, which keeps
+ * the prism glyph's spectrum.
+ */
+function Wordmark({ compact }: { compact: boolean }) {
+  const theme = useThemeStore((t) => t.theme)
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 32 32"
-      fill="none"
-      aria-hidden
-    >
-      <rect width="32" height="32" rx="3" fill="#16202b" stroke="#2d3d4e" />
-      <circle cx="16" cy="16" r="10" stroke="#64788d" strokeWidth="1.25" />
-      <circle cx="16" cy="16" r="5" stroke="#a8b5c4" strokeWidth="1.25" />
-      <circle cx="16" cy="16" r="1.75" fill="#45c3d4" />
-    </svg>
+    <img
+      src={theme === 'light' ? wordmarkLight : wordmarkDark}
+      alt="PRISM"
+      width={compact ? 70 : 96}
+      height={compact ? 19 : 26}
+      className={compact ? 'h-[19px] w-auto' : 'h-[22px] w-auto sm:h-[26px]'}
+      decoding="async"
+    />
   )
 }
+
 
 /**
  * What PRISM stands for. Kept in one place because it appears as the setup
@@ -52,17 +59,9 @@ export function AppShell({ children, compact = false, trailing }: AppShellProps)
             title={`PRISM: ${PRISM_EXPANSION}`}
             className="focus-ring flex items-center gap-2.5 no-underline transition-opacity hover:opacity-90"
           >
-            <BrandMark size={compact ? 22 : 30} />
-            {/* The acronym alone in the header: the full name would crowd out
+            {/* The wordmark alone in the header: the full name would crowd out
                 the build summary that sits beside it on the analysis page. */}
-            <span
-              className={[
-                'font-semibold tracking-tight text-steel-50',
-                compact ? 'text-sm' : 'text-base sm:text-lg',
-              ].join(' ')}
-            >
-              PRISM
-            </span>
+            <Wordmark compact={compact} />
           </Link>
           <div className="flex items-center gap-2">
             {trailing}
@@ -80,4 +79,3 @@ export function AppShell({ children, compact = false, trailing }: AppShellProps)
   )
 }
 
-export { BrandMark }

@@ -1,4 +1,4 @@
-import { AppShell, BrandMark, PRISM_EXPANSION } from '../components/layout/AppShell'
+import { AppShell, PRISM_EXPANSION } from '../components/layout/AppShell'
 import { SetupForm } from '../components/setup/SetupForm'
 
 export function SetupPage() {
@@ -7,7 +7,6 @@ export function SetupPage() {
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 py-8 sm:px-10 sm:py-12">
         <div className="mb-6 flex flex-col gap-2.5 sm:mb-7">
           <div className="flex items-start gap-3 sm:hidden">
-            <BrandMark size={34} />
             <h1 className="flex flex-col gap-0.5">
               <span className="text-xl font-semibold tracking-tight text-steel-50">PRISM:</span>
               <span className="text-sm font-medium leading-snug text-steel-300">
