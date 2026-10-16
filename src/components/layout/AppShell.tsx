@@ -2,24 +2,27 @@ import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 import { useThemeStore } from '../../store/themeStore'
-import wordmarkLight from '../../assets/prism-wordmark.png'
-import wordmarkDark from '../../assets/prism-wordmark-dark.png'
+import logoLight from '../../assets/prism-logo.webp'
+import logoDark from '../../assets/prism-logo-dark.webp'
 
 /**
- * The wordmark, cut from the supplied logo artwork with its white ground
- * keyed out. The artwork's navy ink disappears against the dark interface, so
- * the dark-theme copy is the same cut with its lightness inverted, which keeps
- * the prism glyph's spectrum.
+ * The supplied logo, white ground keyed out so it sits on the header rather
+ * than in a white box. The artwork is drawn for paper: its ink is navy and
+ * its ground is white, both of which fail on the dark interface, so the
+ * dark-theme copy is the same art with its lightness inverted — which turns
+ * the ground transparent and the wordmark pale while leaving the prism's
+ * spectrum intact.
  */
-function Wordmark({ compact }: { compact: boolean }) {
+function Logo({ compact }: { compact: boolean }) {
   const theme = useThemeStore((t) => t.theme)
   return (
     <img
-      src={theme === 'light' ? wordmarkLight : wordmarkDark}
+      src={theme === 'light' ? logoLight : logoDark}
       alt="PRISM"
-      width={compact ? 70 : 96}
-      height={compact ? 19 : 26}
-      className={compact ? 'h-[19px] w-auto' : 'h-[22px] w-auto sm:h-[26px]'}
+      width={compact ? 150 : 240}
+      height={compact ? 75 : 120}
+      // Narrower on a phone, where the controls beside it have little room.
+      className={compact ? 'h-auto w-[116px] sm:w-[150px]' : 'h-auto w-[180px] sm:w-[240px]'}
       decoding="async"
     />
   )
@@ -51,19 +54,21 @@ export function AppShell({ children, compact = false, trailing }: AppShellProps)
           className={[
             'flex items-center justify-between gap-4',
             'border-b border-[color:var(--border-hairline)] bg-steel-950/55 backdrop-blur-sm',
-            compact ? 'px-3 py-2.5 sm:px-4' : 'px-6 py-4 sm:px-10',
+            compact ? 'px-3 py-2 sm:px-4' : 'px-6 py-3 sm:px-10',
           ].join(' ')}
         >
+          {/* Three columns rather than two, so the logo is centred on the
+              header itself and does not shift as the controls beside it
+              change from page to page. */}
+          <div aria-hidden className="min-w-0 flex-1" />
           <Link
             to="/"
             title={`PRISM: ${PRISM_EXPANSION}`}
-            className="focus-ring flex items-center gap-2.5 no-underline transition-opacity hover:opacity-90"
+            className="focus-ring shrink-0 no-underline transition-opacity hover:opacity-90"
           >
-            {/* The wordmark alone in the header: the full name would crowd out
-                the build summary that sits beside it on the analysis page. */}
-            <Wordmark compact={compact} />
+            <Logo compact={compact} />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
             {trailing}
             <ThemeToggle />
           </div>
